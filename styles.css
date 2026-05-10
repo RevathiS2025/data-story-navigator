@@ -205,32 +205,58 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
 }
 
 /* ===== PLATFORM BAR ===== */
+.platform-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.platform-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .platform-bar {
   display: flex;
-  background: var(--bg);
+  flex: 1;
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 20px;
   padding: 3px;
-  margin-bottom: 10px;
+  gap: 2px;
 }
 
 .platform-btn {
-  background: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 16px;
   color: var(--text-3);
   cursor: pointer;
   flex: 1;
   font-family: var(--font);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
-  padding: 6px 4px;
+  outline: none;
+  padding: 5px 6px;
   text-align: center;
-  transition: background var(--ease), color var(--ease);
+  transition: background var(--ease), color var(--ease), box-shadow var(--ease);
   white-space: nowrap;
 }
-.platform-btn:hover { color: var(--text-2); }
-.platform-btn.active { background: var(--accent); color: #fff; font-weight: 600; }
+.platform-btn:hover:not(.active) { color: var(--text-2); background: var(--accent-dim); }
+.platform-btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(99,102,241,0.4);
+}
 .platform-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ===== TAB BAR ===== */
@@ -393,17 +419,17 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
 .btn-settings:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .btn-theme {
-  background: none;
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  color: var(--text-2);
+  color: var(--text);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
-  padding: 8px 11px;
-  transition: background var(--ease), color var(--ease);
+  padding: 7px 12px;
+  transition: background var(--ease), border-color var(--ease);
 }
-.btn-theme:hover { background: var(--surface-2); color: var(--text); }
+.btn-theme:hover { background: var(--border); border-color: var(--text-3); }
 .btn-theme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .header-actions { display: flex; align-items: center; gap: 8px; }
