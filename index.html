@@ -75,9 +75,10 @@
           <p class="brand-tagline">Business question → Power BI visual → Ready to build</p>
         </div>
       </div>
-      <button class="btn-settings" id="openSettingsBtn" aria-label="Open settings" aria-haspopup="dialog">
-        ⚙ Settings
-      </button>
+      <div class="header-actions">
+        <button class="btn-theme" id="themeToggleBtn" aria-label="Switch to light mode">☀</button>
+        <button class="btn-settings" id="openSettingsBtn" aria-label="Open settings" aria-haspopup="dialog">⚙ Settings</button>
+      </div>
     </div>
   </header>
 
@@ -93,6 +94,13 @@
     <div class="layout">
       <!-- Left: Input Panel -->
       <div class="input-col">
+        <!-- Platform Switcher -->
+        <div class="platform-bar" role="group" aria-label="Target platform">
+          <button class="platform-btn active" data-platform="powerbi" aria-pressed="true">Power BI</button>
+          <button class="platform-btn" data-platform="tableau" aria-pressed="false">Tableau</button>
+          <button class="platform-btn" data-platform="looker" aria-pressed="false">Looker Studio</button>
+        </div>
+
         <!-- Tab Bar -->
         <div class="tab-bar" role="tablist" aria-label="Input mode">
           <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-plain" data-target="plain">Plain English</button>
