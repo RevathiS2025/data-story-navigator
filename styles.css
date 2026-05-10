@@ -192,7 +192,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
   width: 100%;
   padding: 28px 24px;
   display: grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: 450px 1fr;
   gap: 28px;
   align-items: start;
   flex: 1;
@@ -277,7 +277,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
   cursor: pointer;
   font-family: var(--font);
   font-size: 13px;
-  padding: 10px 6px;
+  padding: 10px 12px;
   white-space: nowrap;
   transition: color var(--ease), border-color var(--ease);
 }
