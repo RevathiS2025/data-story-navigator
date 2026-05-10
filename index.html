@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Story Navigator — Power BI Visual Recommender</title>
+  <meta name="description" content="Turn stakeholder business questions into the right Power BI visual and data story with AI-powered guidance.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Skip link for keyboard users -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Settings Overlay -->
+  <div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
+    <div class="settings-panel">
+      <div class="settings-head">
+        <h2 id="settingsTitle">Settings</h2>
+        <button class="icon-btn" id="closeSettingsBtn" aria-label="Close settings">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="info-box">
+          <p>
+            This app uses the <strong>Groq free API</strong>. You need a free key from
+            <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer">console.groq.com</a>
+            — no credit card required. Your key is stored only in your browser and sent directly to Groq.
+            It is never stored on any server.
+          </p>
+        </div>
+
+        <div class="field-group">
+          <label for="apiKeyInput" class="field-label">Groq API Key</label>
+          <div class="input-row">
+            <input
+              type="password"
+              id="apiKeyInput"
+              class="text-field"
+              placeholder="gsk_..."
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="keyHint"
+            >
+            <button class="btn-secondary" id="toggleKeyBtn" aria-label="Toggle API key visibility">Show</button>
+          </div>
+          <p class="field-hint" id="keyHint">Stored in browser localStorage — not sent anywhere except Groq</p>
+        </div>
+
+        <div class="field-group">
+          <label for="modelSelect" class="field-label">AI Model</label>
+          <select id="modelSelect" class="select-field" aria-describedby="modelHint">
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B — Best quality (Recommended)</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B — Faster responses</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B — Alternative</option>
+          </select>
+          <p class="field-hint" id="modelHint">All models are free on Groq's free tier</p>
+        </div>
+
+        <div class="settings-actions">
+          <button class="btn-primary" id="saveSettingsBtn">Save Settings</button>
+          <button class="btn-ghost" id="clearKeyBtn">Clear Key</button>
+        </div>
+
+        <div class="status-msg" id="settingsStatus" role="status" aria-live="polite" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">◈</div>
+        <div class="brand-text">
+          <h1 class="brand-name">Data Story Navigator</h1>
+          <p class="brand-tagline">Business question → Power BI visual → Ready to build</p>
+        </div>
+      </div>
+      <button class="btn-settings" id="openSettingsBtn" aria-label="Open settings" aria-haspopup="dialog">
+        ⚙ Settings
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main id="main-content" class="main">
+    <!-- No API Key Banner -->
+    <div class="alert-banner" id="noKeyBanner" role="alert" hidden>
+      <span class="alert-icon" aria-hidden="true">⚠</span>
+      <span>Add your free Groq API key in Settings to get started.</span>
+      <button class="btn-link" id="bannerOpenSettingsBtn">Open Settings →</button>
+    </div>
+
+    <div class="layout">
+      <!-- Left: Input Panel -->
+      <div class="input-col">
+        <!-- Tab Bar -->
+        <div class="tab-bar" role="tablist" aria-label="Input mode">
+          <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-plain" data-target="plain">Plain English</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-guided" data-target="guided">Guided Mode</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-translator" data-target="translator">Translator</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-history" data-target="history">History</button>
+        </div>
+
+        <!-- Panel: Plain English -->
+        <section class="tab-panel" id="panel-plain" role="tabpanel">
+          <div class="panel-inner">
+            <p class="panel-desc">Type the stakeholder question exactly as received, or rephrase it in plain English.</p>
+            <div class="field-group">
+              <label for="plainInput" class="sr-only">Stakeholder question</label>
+              <textarea
+                id="plainInput"
+                class="textarea-field"
+                rows="4"
+                placeholder="e.g. Show me how sales is doing&#10;e.g. Why did revenue drop last month&#10;e.g. Which region is performing best"
+                aria-label="Type your stakeholder question"
+              ></textarea>
+            </div>
+            <div class="chip-row" aria-label="Example questions">
+              <span class="chip-label">Try:</span>
+              <button class="chip" data-fill="plainInput">Show me how sales is doing</button>
+              <button class="chip" data-fill="plainInput">Why did revenue drop last month</button>
+              <button class="chip" data-fill="plainInput">Which region is performing best</button>
+              <button class="chip" data-fill="plainInput">Are we on track to hit our target</button>
+            </div>
+            <button class="btn-primary full-width" id="submitPlainBtn">
+              <span class="btn-label">Get Story Recommendation</span>
+              <span class="btn-spinner" hidden aria-hidden="true">
+                <span></span><span></span><span></span>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Panel: Guided Mode -->
+        <section class="tab-panel" id="panel-guided" role="tabpanel" hidden>
+          <div class="panel-inner">
+            <p class="panel-desc">Answer three questions and the app will build the right story recommendation.</p>
+
+            <div class="field-group">
+              <label for="guidedIntent" class="field-label">What is your stakeholder asking?</label>
+              <select id="guidedIntent" class="select-field">
+                <option value="">Select intent...</option>
+                <option value="Compare">Compare — show how values differ across categories</option>
+                <option value="Track over time">Track over time — show trend or change</option>
+                <option value="Show composition">Show composition — show how parts make up a whole</option>
+                <option value="Find outliers">Find outliers — identify unusual values or anomalies</option>
+                <option value="Check progress toward goal">Check progress toward goal — actual vs target</option>
+                <option value="Understand distribution">Understand distribution — show how values spread</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="guidedAudience" class="field-label">Who is the audience?</label>
+              <select id="guidedAudience" class="select-field">
+                <option value="">Select audience...</option>
+                <option value="Executive">Executive — high-level summary, not details</option>
+                <option value="Operations team">Operations team — detail-oriented, process focus</option>
+                <option value="Sales team">Sales team — pipeline, targets, territory</option>
+                <option value="Finance team">Finance team — accuracy, variance, budget</option>
+                <option value="General audience">General audience — mixed levels</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="guidedGrain" class="field-label">What is your data grain?</label>
+              <select id="guidedGrain" class="select-field">
+                <option value="">Select data grain...</option>
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Yearly">Yearly</option>
+                <option value="By category">By category</option>
+                <option value="By geography">By geography</option>
+              </select>
+            </div>
+
+            <button class="btn-primary full-width" id="submitGuidedBtn">
+              <span class="btn-label">Get Story Recommendation</span>
+              <span class="btn-spinner" hidden aria-hidden="true">
+                <span></span><span></span><span></span>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Panel: Stakeholder Translator -->
+        <section class="tab-panel" id="panel-translator" role="tabpanel" hidden>
+          <div class="panel-inner">
+            <p class="panel-desc">
+              Paste a vague stakeholder request. Get back what they likely mean,
+              what data you need, and what clarifying question to ask.
+            </p>
+            <div class="example-translator">
+              <p class="example-label">Example input:</p>
+              <p class="example-text">"Can you show me how the business is doing?"</p>
+            </div>
+            <div class="field-group">
+              <label for="translatorInput" class="sr-only">Stakeholder request to translate</label>
+              <textarea
+                id="translatorInput"
+                class="textarea-field"
+                rows="4"
+                placeholder="e.g. Can you show me how the business is doing?&#10;e.g. I want to see everything about customers"
+                aria-label="Paste stakeholder request to translate"
+              ></textarea>
+            </div>
+            <button class="btn-primary full-width" id="submitTranslatorBtn">
+              <span class="btn-label">Translate Request</span>
+              <span class="btn-spinner" hidden aria-hidden="true">
+                <span></span><span></span><span></span>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Panel: History -->
+        <section class="tab-panel" id="panel-history" role="tabpanel" hidden>
+          <div class="panel-inner">
+            <p class="panel-desc">
+              Your last 10 story recommendations from this session.
+              Clears when you close this tab.
+            </p>
+            <div id="historyList" class="history-list">
+              <p class="empty-state">No history yet. Generate a story recommendation to see it here.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right: Output Panel -->
+      <div class="output-col" id="outputCol">
+        <div class="output-placeholder" id="outputPlaceholder">
+          <div class="placeholder-glyph" aria-hidden="true">◈</div>
+          <p class="placeholder-heading">Your story card will appear here</p>
+          <p class="placeholder-sub">Type a question or use Guided Mode to get started</p>
+        </div>
+        <div id="outputContent" hidden></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <p>
+        Data Story Navigator &middot; Free &middot; No backend &middot; Powered by
+        <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer">Groq API</a>
+        &middot; Built for Power BI analysts
+      </p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
