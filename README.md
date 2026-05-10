@@ -95,6 +95,4 @@ Your Groq API key is stored only in your browser's `localStorage`. It is never s
 
 ---
 
-## Built with
 
-[Claude Code](https://claude.ai/code) — built in a single session from a PRD.
