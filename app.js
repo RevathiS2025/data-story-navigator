@@ -1,17 +1,21 @@
 'use strict';
 
 // ===== STATE =====
-let apiKey = localStorage.getItem('dsn_api_key') || '';
+let apiKey    = localStorage.getItem('dsn_api_key') || '';
 const LEGACY_MODELS = new Set(['llama3-70b-8192', 'llama3-8b-8192']);
 const _storedModel = localStorage.getItem('dsn_model') || '';
-let model = (LEGACY_MODELS.has(_storedModel) || !_storedModel) ? 'llama-3.3-70b-versatile' : _storedModel;
-let history  = JSON.parse(sessionStorage.getItem('dsn_history') || '[]');
-let platform = localStorage.getItem('dsn_platform') || 'powerbi';
-let theme    = localStorage.getItem('dsn_theme')    || 'dark';
+let model     = (LEGACY_MODELS.has(_storedModel) || !_storedModel) ? 'llama-3.3-70b-versatile' : _storedModel;
+let history   = JSON.parse(sessionStorage.getItem('dsn_history')  || '[]');
+let bookmarks = JSON.parse(localStorage.getItem('dsn_bookmarks')  || '[]');
+let platform  = localStorage.getItem('dsn_platform') || 'powerbi';
+let theme     = localStorage.getItem('dsn_theme')    || 'dark';
 
-let _clipboardText = '';
-let _currentStory  = null;
-let _currentQuery  = '';
+let _clipboardText   = '';
+let _currentStory    = null;
+let _currentResult   = null;
+let _currentQuery    = '';
+let _currentCardType = '';
+let _currentCardId   = null;
 
 // ===== PLATFORM METADATA =====
 const PLATFORM_META = {
@@ -164,6 +168,7 @@ const el = {
   guidedGrain:         $('guidedGrain'),
   translatorInput:     $('translatorInput'),
   historyList:         $('historyList'),
+  bookmarksList:       $('bookmarksList'),
   outputPlaceholder:   $('outputPlaceholder'),
   outputContent:       $('outputContent'),
   themeToggleBtn:      $('themeToggleBtn'),
@@ -228,6 +233,15 @@ function init() {
     if (e.target.closest('.copy-btn'))     handleCopy();
     if (e.target.closest('.dax-btn'))      handleDAX();
     if (e.target.closest('.copy-dax-btn')) handleCopyDAX();
+    if (e.target.closest('.bookmark-btn')) handleBookmark();
+  });
+
+  // Bookmarks list delegation
+  el.bookmarksList?.addEventListener('click', e => {
+    const replayBtn = e.target.closest('.bookmark-replay-btn');
+    const deleteBtn = e.target.closest('.bookmark-delete-btn');
+    if (replayBtn) replayBookmark(Number(replayBtn.dataset.id));
+    if (deleteBtn) removeBookmark(Number(deleteBtn.dataset.id));
   });
 }
 
@@ -318,7 +332,8 @@ function switchTab(target) {
   el.panels.forEach(panel => {
     panel.hidden = panel.id !== `panel-${target}`;
   });
-  if (target === 'history') renderHistory();
+  if (target === 'history')   renderHistory();
+  if (target === 'bookmarks') renderBookmarks();
 }
 
 // ===== GROQ API =====
@@ -574,13 +589,16 @@ function showSoft(message) {
 
 // ===== RENDER STORY CARD =====
 function renderStoryCard(d, query) {
-  _currentStory  = d;
-  _currentQuery  = query;
-  _clipboardText = buildStoryText(d, query);
+  _currentStory    = d;
+  _currentResult   = d;
+  _currentCardType = 'story';
+  _currentQuery    = query;
+  _clipboardText   = buildStoryText(d, query);
 
-  const meta  = PLATFORM_META[platform] || PLATFORM_META.powerbi;
-  const ax    = d.axis_config || {};
-  const isDax = platform === 'powerbi';
+  const meta         = PLATFORM_META[platform] || PLATFORM_META.powerbi;
+  const ax           = d.axis_config || {};
+  const isDax        = platform === 'powerbi';
+  const isBookmarked = bookmarks.some(b => b.id === _currentCardId);
 
   showOutput(`
     <div class="story-card">
@@ -633,6 +651,7 @@ function renderStoryCard(d, query) {
       <div class="card-foot">
         <button class="btn-primary copy-btn" aria-label="Copy story card to clipboard">Copy to Clipboard</button>
         ${isDax ? '<button class="btn-secondary dax-btn" aria-label="Generate a DAX measure for this visual">Generate DAX</button>' : ''}
+        <button class="btn-ghost bookmark-btn${isBookmarked ? ' bookmarked' : ''}" aria-label="${isBookmarked ? 'Remove bookmark' : 'Bookmark this card'}">${isBookmarked ? '★ Bookmarked' : '☆ Bookmark'}</button>
         <span class="copy-confirm" id="copyConfirm" hidden aria-live="polite">Copied!</span>
       </div>
 
@@ -642,8 +661,13 @@ function renderStoryCard(d, query) {
 
 // ===== RENDER TRANSLATOR CARD =====
 function renderTranslatorCard(d, query) {
-  _currentStory  = null;
-  _clipboardText = buildTranslatorText(d, query);
+  _currentStory    = null;
+  _currentResult   = d;
+  _currentCardType = 'translator';
+  _currentQuery    = query;
+  _clipboardText   = buildTranslatorText(d, query);
+
+  const isBookmarked = bookmarks.some(b => b.id === _currentCardId);
 
   showOutput(`
     <div class="translator-card">
@@ -671,6 +695,7 @@ function renderTranslatorCard(d, query) {
 
       <div class="card-foot">
         <button class="btn-primary copy-btn" aria-label="Copy translation to clipboard">Copy to Clipboard</button>
+        <button class="btn-ghost bookmark-btn${isBookmarked ? ' bookmarked' : ''}" aria-label="${isBookmarked ? 'Remove bookmark' : 'Bookmark this card'}">${isBookmarked ? '★ Bookmarked' : '☆ Bookmark'}</button>
         <span class="copy-confirm" id="copyConfirm" hidden aria-live="polite">Copied!</span>
       </div>
     </div>`);
@@ -743,7 +768,9 @@ function buildTranslatorText(d, query) {
 
 // ===== SESSION HISTORY =====
 function saveHistory(query, result, type) {
-  history.unshift({ id: Date.now(), query, result, type, platform, time: new Date().toLocaleTimeString() });
+  const entry = { id: Date.now(), query, result, type, platform, time: new Date().toLocaleTimeString() };
+  history.unshift(entry);
+  _currentCardId = entry.id;
   if (history.length > 10) history.pop();
   sessionStorage.setItem('dsn_history', JSON.stringify(history));
 }
@@ -771,10 +798,95 @@ function renderHistory() {
 function replayHistory(id) {
   const entry = history.find(e => e.id === id);
   if (!entry) return;
+  _currentCardId = entry.id;
   if (entry.platform) switchPlatform(entry.platform);
   switchTab('plain');
   if (entry.type === 'story') renderStoryCard(entry.result, entry.query);
   else renderTranslatorCard(entry.result, entry.query);
+}
+
+// ===== PERSISTENT BOOKMARKS =====
+function handleBookmark() {
+  if (!_currentCardId) return;
+  const idx = bookmarks.findIndex(b => b.id === _currentCardId);
+  const btn = el.outputContent.querySelector('.bookmark-btn');
+
+  if (idx !== -1) {
+    bookmarks.splice(idx, 1);
+    localStorage.setItem('dsn_bookmarks', JSON.stringify(bookmarks));
+    if (btn) {
+      btn.textContent = '☆ Bookmark';
+      btn.classList.remove('bookmarked');
+      btn.setAttribute('aria-label', 'Bookmark this card');
+    }
+  } else {
+    if (!_currentResult) return;
+    const entry = {
+      id: _currentCardId,
+      query: _currentQuery,
+      result: _currentResult,
+      type: _currentCardType,
+      platform,
+      bookmarkedAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    };
+    bookmarks.unshift(entry);
+    if (bookmarks.length > 20) bookmarks.pop();
+    localStorage.setItem('dsn_bookmarks', JSON.stringify(bookmarks));
+    if (btn) {
+      btn.textContent = '★ Bookmarked';
+      btn.classList.add('bookmarked');
+      btn.setAttribute('aria-label', 'Remove bookmark');
+    }
+  }
+
+  const bookmarksPanel = $('panel-bookmarks');
+  if (bookmarksPanel && !bookmarksPanel.hidden) renderBookmarks();
+}
+
+function renderBookmarks() {
+  if (!el.bookmarksList) return;
+  if (!bookmarks.length) {
+    el.bookmarksList.innerHTML = '<p class="empty-state">No bookmarks yet. Click ☆ Bookmark on any story card to save it here.</p>';
+    return;
+  }
+  el.bookmarksList.innerHTML = bookmarks.map(entry => {
+    const platName  = entry.platform ? (PLATFORM_META[entry.platform]?.name || entry.platform) : '';
+    const typeLabel = entry.type === 'translator' ? 'Translation' : `Story Card${platName ? ' · ' + platName : ''}`;
+    return `
+      <div class="bookmark-item">
+        <button class="bookmark-replay-btn" data-id="${entry.id}" aria-label="Replay: ${esc(entry.query)}">
+          <div class="history-query">${esc(entry.query)}</div>
+          <div class="history-meta">${esc(typeLabel)} · ${esc(entry.bookmarkedAt)}</div>
+        </button>
+        <button class="bookmark-delete-btn icon-btn" data-id="${entry.id}" aria-label="Remove bookmark">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function replayBookmark(id) {
+  const entry = bookmarks.find(b => b.id === id);
+  if (!entry) return;
+  _currentCardId = entry.id;
+  if (entry.platform) switchPlatform(entry.platform);
+  switchTab('plain');
+  if (entry.type === 'story') renderStoryCard(entry.result, entry.query);
+  else renderTranslatorCard(entry.result, entry.query);
+}
+
+function removeBookmark(id) {
+  const idx = bookmarks.findIndex(b => b.id === id);
+  if (idx === -1) return;
+  bookmarks.splice(idx, 1);
+  localStorage.setItem('dsn_bookmarks', JSON.stringify(bookmarks));
+  renderBookmarks();
+  if (_currentCardId === id) {
+    const btn = el.outputContent.querySelector('.bookmark-btn');
+    if (btn) {
+      btn.textContent = '☆ Bookmark';
+      btn.classList.remove('bookmarked');
+      btn.setAttribute('aria-label', 'Bookmark this card');
+    }
+  }
 }
 
 // ===== UTILS =====

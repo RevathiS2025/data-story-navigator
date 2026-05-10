@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Data Story Navigator — Power BI Visual Recommender</title>
   <meta name="description" content="Turn stakeholder business questions into the right Power BI visual and data story with AI-powered guidance.">
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
   <!-- Skip link for keyboard users -->
@@ -110,6 +110,7 @@
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-guided" data-target="guided">Guided Mode</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-translator" data-target="translator">Translator</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-history" data-target="history">History</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-bookmarks" data-target="bookmarks">Bookmarks</button>
         </div>
 
         <!-- Panel: Plain English -->
@@ -236,6 +237,19 @@
             </div>
           </div>
         </section>
+
+        <!-- Panel: Bookmarks -->
+        <section class="tab-panel" id="panel-bookmarks" role="tabpanel" hidden>
+          <div class="panel-inner">
+            <p class="panel-desc">
+              Saved story cards — bookmarks persist across sessions.
+              Click ☆ Bookmark on any card to save it here.
+            </p>
+            <div id="bookmarksList" class="bookmarks-list">
+              <p class="empty-state">No bookmarks yet. Click ☆ Bookmark on any story card to save it here.</p>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- Right: Output Panel -->
@@ -260,6 +274,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
