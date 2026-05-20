@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Data Story Navigator — Visual Recommender for Power BI, Tableau &amp; Looker Studio</title>
   <meta name="description" content="Turn stakeholder business questions into the right data visual and story — for Power BI, Tableau, and Looker Studio. AI-powered, free, no install required.">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
   <!-- Skip link for keyboard users -->
@@ -108,7 +108,6 @@
         <div class="tab-bar" role="tablist" aria-label="Input mode">
           <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-plain" data-target="plain">Plain English</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-guided" data-target="guided">Guided</button>
-          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-translator" data-target="translator">Translator</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-history" data-target="history">History</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-bookmarks" data-target="bookmarks">Bookmarks</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-dax" data-target="dax">DAX Builder</button>
@@ -189,36 +188,6 @@
 
             <button class="btn-primary full-width" id="submitGuidedBtn">
               <span class="btn-label">Get Story Recommendation</span>
-              <span class="btn-spinner" hidden aria-hidden="true">
-                <span></span><span></span><span></span>
-              </span>
-            </button>
-          </div>
-        </section>
-
-        <!-- Panel: Stakeholder Translator -->
-        <section class="tab-panel" id="panel-translator" role="tabpanel" hidden>
-          <div class="panel-inner">
-            <p class="panel-desc">
-              Paste a vague stakeholder request. Get back what they likely mean,
-              what data you need, and what clarifying question to ask.
-            </p>
-            <div class="example-translator">
-              <p class="example-label">Example input:</p>
-              <p class="example-text">"Can you show me how the business is doing?"</p>
-            </div>
-            <div class="field-group">
-              <label for="translatorInput" class="sr-only">Stakeholder request to translate</label>
-              <textarea
-                id="translatorInput"
-                class="textarea-field"
-                rows="4"
-                placeholder="e.g. Can you show me how the business is doing?&#10;e.g. I want to see everything about customers"
-                aria-label="Paste stakeholder request to translate"
-              ></textarea>
-            </div>
-            <button class="btn-primary full-width" id="submitTranslatorBtn">
-              <span class="btn-label">Translate Request</span>
               <span class="btn-spinner" hidden aria-hidden="true">
                 <span></span><span></span><span></span>
               </span>

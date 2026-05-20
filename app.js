@@ -110,22 +110,6 @@ STRICT RULES:
 
 };
 
-const TRANSLATOR_SYSTEM_PROMPT = `You are a senior data analyst who translates vague stakeholder requests into precise, actionable data requirements.
-
-Respond with ONLY a valid JSON object — no markdown, no code fences, no explanation. Raw JSON only.
-
-Required JSON structure:
-{
-  "likely_means": "What the stakeholder likely wants to see, stated in specific data terms with named metrics",
-  "data_needed": "Specific data columns, measures, or tables needed (e.g. Date, Revenue Actual, Revenue Target, Region)",
-  "ask_back": "The single most important clarifying question to ask the stakeholder before building the report"
-}
-
-RULES:
-1. Be specific — name actual column types and metric names, not vague descriptions
-2. Frame everything from the perspective of what a data analyst needs to build the report
-3. If the input is clearly not a business or data request, respond with exactly: {"error": "This does not look like a stakeholder request. Try pasting something like: Can you show me how the business is doing?"}`;
-
 const DAX_BUILDER_PROMPT = `You are a Power BI DAX expert. Given a user-specified table name, column names, and calculation type, generate a practical, ready-to-use DAX measure.
 
 Respond with ONLY a valid JSON object — no markdown, no code fences, no explanation. Raw JSON only.
@@ -170,13 +154,11 @@ const el = {
   panels:              document.querySelectorAll('.tab-panel'),
   submitPlainBtn:      $('submitPlainBtn'),
   submitGuidedBtn:     $('submitGuidedBtn'),
-  submitTranslatorBtn: $('submitTranslatorBtn'),
   submitDaxBtn:        $('submitDaxBtn'),
   plainInput:          $('plainInput'),
   guidedIntent:        $('guidedIntent'),
   guidedAudience:      $('guidedAudience'),
   guidedGrain:         $('guidedGrain'),
-  translatorInput:     $('translatorInput'),
   daxCalcType:         $('daxCalcType'),
   daxTableName:        $('daxTableName'),
   daxColumns:          $('daxColumns'),
@@ -222,11 +204,9 @@ function init() {
 
   el.submitPlainBtn.addEventListener('click', handlePlain);
   el.submitGuidedBtn.addEventListener('click', handleGuided);
-  el.submitTranslatorBtn.addEventListener('click', handleTranslator);
   el.submitDaxBtn?.addEventListener('click', handleDAXBuilder);
 
   el.plainInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePlain(); } });
-  el.translatorInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTranslator(); } });
 
   document.querySelectorAll('.chip[data-fill]').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -339,6 +319,7 @@ function switchTab(target) {
   });
   if (target === 'history')   renderHistory();
   if (target === 'bookmarks') renderBookmarks();
+
 }
 
 // ===== GROQ API =====
@@ -443,26 +424,6 @@ async function handleGuided() {
     showError(err);
   } finally {
     setLoading(el.submitGuidedBtn, false);
-  }
-}
-
-async function handleTranslator() {
-  const req = el.translatorInput.value.trim();
-  if (!req) { el.translatorInput.focus(); return; }
-  if (!requireKey()) return;
-
-  setLoading(el.submitTranslatorBtn, true);
-  showLoading();
-
-  try {
-    const raw  = await callGroq(TRANSLATOR_SYSTEM_PROMPT, req);
-    const data = parseGroqJSON(raw);
-    if (data.error) { showSoft(data.error); }
-    else { saveHistory(req, data, 'translator'); renderTranslatorCard(data, req); }
-  } catch (err) {
-    showError(err);
-  } finally {
-    setLoading(el.submitTranslatorBtn, false);
   }
 }
 
@@ -755,48 +716,6 @@ function renderDaxCard(data) {
     </div>`);
 }
 
-// ===== RENDER TRANSLATOR CARD =====
-function renderTranslatorCard(d, query) {
-  _currentStory    = null;
-  _currentResult   = d;
-  _currentCardType = 'translator';
-  _currentQuery    = query;
-  _clipboardText   = buildTranslatorText(d, query);
-
-  const isBookmarked = bookmarks.some(b => b.id === _currentCardId);
-
-  showOutput(`
-    <div class="translator-card">
-      <div class="trans-head">
-        <h3>Stakeholder Translation</h3>
-        <div class="card-query" style="margin-top:6px">For: &ldquo;${esc(query)}&rdquo;</div>
-      </div>
-
-      <div class="trans-body">
-        <div class="card-section">
-          <div class="section-label">What they likely mean</div>
-          <div class="rule-box tip">${esc(d.likely_means)}</div>
-        </div>
-
-        <div class="card-section">
-          <div class="section-label">Data you need to build this report</div>
-          <div class="rule-box" style="background:var(--accent-dim);border-color:var(--accent)">${esc(d.data_needed)}</div>
-        </div>
-
-        <div class="card-section">
-          <div class="section-label">Clarifying question to ask back</div>
-          <div class="rule-box mistake">${esc(d.ask_back)}</div>
-        </div>
-      </div>
-
-      <div class="card-foot">
-        <button class="btn-primary copy-btn" aria-label="Copy translation to clipboard">Copy to Clipboard</button>
-        <button class="btn-ghost bookmark-btn${isBookmarked ? ' bookmarked' : ''}" aria-label="${isBookmarked ? 'Remove bookmark' : 'Bookmark this card'}">${isBookmarked ? '★ Bookmarked' : '☆ Bookmark'}</button>
-        <span class="copy-confirm" id="copyConfirm" hidden aria-live="polite">Copied!</span>
-      </div>
-    </div>`);
-}
-
 // ===== CLIPBOARD =====
 async function handleCopy() {
   try {
@@ -843,22 +762,6 @@ function buildStoryText(d, query) {
     '',
     `ALTERNATIVE VISUAL: ${d.alternative_visual}`,
     d.alternative_reason,
-  ].join('\n');
-}
-
-function buildTranslatorText(d, query) {
-  return [
-    'DATA STORY NAVIGATOR — Stakeholder Translation',
-    `For: "${query}"`,
-    '',
-    'WHAT THEY LIKELY MEAN:',
-    d.likely_means,
-    '',
-    'DATA NEEDED:',
-    d.data_needed,
-    '',
-    'ASK BACK:',
-    d.ask_back,
   ].join('\n');
 }
 
