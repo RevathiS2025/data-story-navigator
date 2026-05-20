@@ -16,6 +16,7 @@ let _currentResult   = null;
 let _currentQuery    = '';
 let _currentCardType = '';
 let _currentCardId   = null;
+let _currentDaxCode  = '';
 
 // ===== PLATFORM METADATA =====
 const PLATFORM_META = {
@@ -67,7 +68,7 @@ Required JSON structure:
     "y_axis": "What measure goes on the Rows shelf",
     "legend": "Color, Size, or Shape encoding field — or 'Not required'"
   },
-  "mistake_to_avoid": "The single most common mistake analysts make with this chart type in Tableau",
+  "mistake_to_avoid": "The single most common mistake analysts make with this chart type in Tableau and why it weakens the story",
   "accessibility_tip": "One specific, actionable Tableau accessibility tip for this chart",
   "alternative_visual": "Name of one alternative Tableau chart type",
   "alternative_reason": "When to use the alternative instead"
@@ -77,7 +78,8 @@ STRICT RULES:
 1. Only recommend visuals from this list: Bar Chart, Horizontal Bar Chart, Line Chart, Area Chart, Scatter Plot, Pie Chart, Donut Chart, Filled Map, Symbol Map, Heatmap, Highlight Table, Text Table, Treemap, Dual Axis Chart, Box Plot, Histogram, Gantt Chart, Bullet Chart, Waterfall Chart, KPI (Big Number)
 2. Only recommend Pie or Donut if the question is genuinely about part-to-whole composition AND has fewer than 5 categories
 3. Use Tableau-specific terminology — reference Columns shelf, Rows shelf, Marks card, Color/Size/Shape/Tooltip encodings
-4. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
+4. Tableau has unique strengths: use Dual Axis Chart for overlay comparisons, Heatmap/Highlight Table for cross-dimensional analysis, Box Plot for distribution, Gantt for timeline — prefer these over generic charts when the question suits them
+5. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
 
 looker: `You are a Google Looker Studio data storytelling expert. A data analyst has received a stakeholder business question and needs to know the right data story type and Looker Studio chart type.
 
@@ -93,7 +95,7 @@ Required JSON structure:
     "y_axis": "Metric field (what is being measured)",
     "legend": "Breakdown dimension for color — or 'Not required'"
   },
-  "mistake_to_avoid": "The single most common mistake analysts make with this chart in Looker Studio",
+  "mistake_to_avoid": "The single most common mistake analysts make with this chart in Looker Studio and why it misleads the audience",
   "accessibility_tip": "One specific, actionable Looker Studio accessibility tip for this chart",
   "alternative_visual": "Name of one alternative Looker Studio chart type",
   "alternative_reason": "When to use the alternative instead"
@@ -103,7 +105,8 @@ STRICT RULES:
 1. Only recommend visuals from this list: Bar Chart, Column Chart, Line Chart, Area Chart, Scatter Chart, Pie Chart, Donut Chart, Table, Pivot Table, Scorecard, Geo Chart, Filled Map, Treemap, Gauge, Bullet Chart, Heatmap, Combo Chart, Funnel Chart
 2. Only recommend Pie or Donut if the question is genuinely about part-to-whole composition AND has fewer than 5 categories
 3. Use Looker Studio terminology — reference Dimensions, Metrics, Breakdown Dimension, Date Range Dimension
-4. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
+4. Looker Studio strengths: Scorecard for KPI summaries, Combo Chart for dual-measure overlays, Funnel Chart for conversion flows, Pivot Table for cross-tab analysis — prefer these when the question suits them
+5. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
 
 };
 
@@ -123,25 +126,31 @@ RULES:
 2. Frame everything from the perspective of what a data analyst needs to build the report
 3. If the input is clearly not a business or data request, respond with exactly: {"error": "This does not look like a stakeholder request. Try pasting something like: Can you show me how the business is doing?"}`;
 
-const DAX_SYSTEM_PROMPT = `You are a Power BI DAX expert. Given a story card (story type, recommended visual, axis configuration, and business question), generate a practical, ready-to-use DAX measure.
+const DAX_BUILDER_PROMPT = `You are a Power BI DAX expert. Given a user-specified table name, column names, and calculation type, generate a practical, ready-to-use DAX measure.
 
 Respond with ONLY a valid JSON object — no markdown, no code fences, no explanation. Raw JSON only.
 
 Required JSON structure:
 {
-  "measure_name": "Descriptive DAX measure name in PascalCase (e.g. RevenueYTD, SalesVsTarget)",
-  "dax_code": "Complete DAX measure definition — measure name, equals sign, and full expression with line breaks and 4-space indentation",
+  "measure_name": "DAX measure name in PascalCase — use the user-provided name if given, otherwise generate a clear descriptive name",
+  "dax_code": "Complete DAX measure: measure_name =\\n    full_expression with proper line breaks and 4-space indentation",
   "explanation": "One or two sentences explaining what this measure calculates and when to use it",
-  "assumptions": "Table and column name assumptions made (e.g. assumes Sales table with Amount column, Date table with Date column)"
+  "assumptions": "State any assumptions about table relationships, date table presence, or column naming",
+  "usage_tip": "One specific tip on how to use this measure effectively in a Power BI visual or slicer"
 }
 
 RULES:
-1. Write realistic, usable DAX — not pseudocode or placeholder names
-2. Use common table/column patterns: Sales, Revenue, Orders, Date, Product, Region, Amount, Quantity, Target, Budget, Actual
-3. Include time intelligence where appropriate (DATESINPERIOD, SAMEPERIODLASTYEAR, TOTALYTD, DATESYTD) for trend and period-based questions
-4. Format dax_code with proper line breaks and 4-space indentation for readability
-5. The measure must be syntactically correct DAX that can be pasted directly into Power BI Desktop
-6. If the question involves comparison to target or budget, use CALCULATE with appropriate filter context`;
+1. Write realistic, syntactically correct DAX — not pseudocode or placeholder names
+2. Use the exact table and column names provided by the user
+3. Format dax_code with the measure name, equals sign, then the expression indented 4 spaces per level
+4. For YTD: use TOTALYTD or CALCULATE with DATESYTD
+5. For same period last year: use CALCULATE with SAMEPERIODLASTYEAR
+6. For actual vs target: calculate absolute variance and % variance using DIVIDE to avoid division by zero
+7. For running total: use CALCULATE with FILTER and ALL on the date dimension
+8. For rolling average: use AVERAGEX with DATESINPERIOD
+9. For % of total: use DIVIDE with CALCULATE and ALLSELECTED
+10. For rank: use RANKX with ALL on the category column
+11. Assume a Date table named 'Date' with a 'Date' column exists for time intelligence unless user specifies otherwise`;
 
 // ===== DOM REFS =====
 const $  = id => document.getElementById(id);
@@ -162,11 +171,17 @@ const el = {
   submitPlainBtn:      $('submitPlainBtn'),
   submitGuidedBtn:     $('submitGuidedBtn'),
   submitTranslatorBtn: $('submitTranslatorBtn'),
+  submitDaxBtn:        $('submitDaxBtn'),
   plainInput:          $('plainInput'),
   guidedIntent:        $('guidedIntent'),
   guidedAudience:      $('guidedAudience'),
   guidedGrain:         $('guidedGrain'),
   translatorInput:     $('translatorInput'),
+  daxCalcType:         $('daxCalcType'),
+  daxTableName:        $('daxTableName'),
+  daxColumns:          $('daxColumns'),
+  daxMeasureName:      $('daxMeasureName'),
+  daxNotes:            $('daxNotes'),
   historyList:         $('historyList'),
   bookmarksList:       $('bookmarksList'),
   outputPlaceholder:   $('outputPlaceholder'),
@@ -186,7 +201,6 @@ function init() {
   applyTheme();
   applyPlatform();
 
-  // Settings
   el.openSettingsBtn.addEventListener('click', openSettings);
   el.closeSettingsBtn.addEventListener('click', closeSettings);
   el.bannerSettingsBtn.addEventListener('click', openSettings);
@@ -201,26 +215,19 @@ function init() {
 
   el.saveSettingsBtn.addEventListener('click', saveSettings);
   el.clearKeyBtn.addEventListener('click', clearKey);
-
-  // Theme
   el.themeToggleBtn.addEventListener('click', toggleTheme);
 
-  // Platform
   el.platformBtns.forEach(btn => btn.addEventListener('click', () => switchPlatform(btn.dataset.platform)));
-
-  // Tabs
   el.tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.target)));
 
-  // Submits
   el.submitPlainBtn.addEventListener('click', handlePlain);
   el.submitGuidedBtn.addEventListener('click', handleGuided);
   el.submitTranslatorBtn.addEventListener('click', handleTranslator);
+  el.submitDaxBtn?.addEventListener('click', handleDAXBuilder);
 
-  // Enter key in textareas (Shift+Enter = newline)
   el.plainInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePlain(); } });
   el.translatorInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTranslator(); } });
 
-  // Example chips
   document.querySelectorAll('.chip[data-fill]').forEach(chip => {
     chip.addEventListener('click', () => {
       const target = $(chip.dataset.fill);
@@ -228,15 +235,13 @@ function init() {
     });
   });
 
-  // Output event delegation
   el.outputContent.addEventListener('click', e => {
     if (e.target.closest('.copy-btn'))     handleCopy();
-    if (e.target.closest('.dax-btn'))      handleDAX();
     if (e.target.closest('.copy-dax-btn')) handleCopyDAX();
     if (e.target.closest('.bookmark-btn')) handleBookmark();
+    if (e.target.closest('.compare-btn'))  handleCompare();
   });
 
-  // Bookmarks list delegation
   el.bookmarksList?.addEventListener('click', e => {
     const replayBtn = e.target.closest('.bookmark-replay-btn');
     const deleteBtn = e.target.closest('.bookmark-delete-btn');
@@ -386,7 +391,6 @@ function setLoading(btn, on) {
   if (spinner) spinner.hidden = !on;
 }
 
-// ===== CHECK KEY =====
 function requireKey() {
   if (!apiKey) { openSettings(); return false; }
   return true;
@@ -462,67 +466,48 @@ async function handleTranslator() {
   }
 }
 
-async function handleDAX() {
-  if (!_currentStory || !requireKey()) return;
+async function handleDAXBuilder() {
+  const calcType    = el.daxCalcType?.value;
+  const tableName   = el.daxTableName?.value.trim();
+  const columns     = el.daxColumns?.value.trim();
+  const measureName = el.daxMeasureName?.value.trim() || '';
+  const notes       = el.daxNotes?.value.trim() || '';
 
-  const daxSection = $('daxSection');
-  if (!daxSection) return;
+  if (!calcType)  { highlightEmptySelects([el.daxCalcType]); return; }
+  if (!tableName) { highlightField(el.daxTableName); return; }
+  if (!columns)   { highlightField(el.daxColumns); return; }
+  if (!requireKey()) return;
 
-  daxSection.hidden = false;
-  daxSection.innerHTML = `
-    <div class="dax-section">
-      <div class="section-label">DAX Measure</div>
-      <div class="dax-loading">
-        <div class="loading-dots" style="transform:scale(0.75)"><span></span><span></span><span></span></div>
-        <span>Generating DAX…</span>
-      </div>
-    </div>`;
-
-  const ax = _currentStory.axis_config || {};
   const userMsg = [
-    `Story Type: ${_currentStory.story_type}`,
-    `Recommended Visual: ${_currentStory.recommended_visual}`,
-    `Business Question: ${_currentQuery}`,
-    `Axis — X: ${ax.x_axis || '—'}, Y: ${ax.y_axis || '—'}, Legend: ${ax.legend || 'Not required'}`,
-  ].join('\n');
+    `Calculation type: ${calcType}`,
+    `Table name: ${tableName}`,
+    `Columns: ${columns}`,
+    measureName ? `Desired measure name: ${measureName}` : '',
+    notes       ? `Additional context: ${notes}` : '',
+  ].filter(Boolean).join('\n');
+
+  setLoading(el.submitDaxBtn, true);
+  showLoading();
 
   try {
-    const raw  = await callGroq(DAX_SYSTEM_PROMPT, userMsg);
+    const raw  = await callGroq(DAX_BUILDER_PROMPT, userMsg);
     const data = parseGroqJSON(raw);
-    daxSection.dataset.daxCode = data.dax_code || '';
-    daxSection.innerHTML = `
-      <div class="dax-section">
-        <div class="section-label">DAX Measure</div>
-        <div class="dax-code-block">
-          <div class="dax-code-head">
-            <span class="dax-measure-name">${esc(data.measure_name)}</span>
-            <button class="btn-secondary copy-dax-btn" aria-label="Copy DAX to clipboard">Copy DAX</button>
-          </div>
-          <pre class="dax-code">${esc(data.dax_code)}</pre>
-          <div class="dax-meta">
-            <p class="dax-explanation">${esc(data.explanation)}</p>
-            <p class="dax-assumptions">Assumptions: ${esc(data.assumptions)}</p>
-          </div>
-        </div>
-      </div>`;
+    _currentDaxCode = data.dax_code || '';
+    renderDaxCard(data);
   } catch (err) {
-    console.error('[DSN DAX]', err);
-    daxSection.innerHTML = `
-      <div class="dax-section">
-        <div class="rule-box mistake">Failed to generate DAX. Check your API key or try again.</div>
-      </div>`;
+    showError(err);
+  } finally {
+    setLoading(el.submitDaxBtn, false);
   }
 }
 
 async function handleCopyDAX() {
-  const daxSection = $('daxSection');
-  const code = daxSection?.dataset.daxCode || '';
-  if (!code) return;
+  if (!_currentDaxCode) return;
   try {
-    await navigator.clipboard.writeText(code);
+    await navigator.clipboard.writeText(_currentDaxCode);
   } catch {
     const ta = document.createElement('textarea');
-    ta.value = code;
+    ta.value = _currentDaxCode;
     ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
     document.body.appendChild(ta);
     ta.select();
@@ -537,6 +522,76 @@ async function handleCopyDAX() {
   }
 }
 
+async function handleCompare() {
+  if (!_currentStory || !_currentQuery) return;
+  if (!requireKey()) return;
+
+  const compareSection = $('compareSection');
+  if (!compareSection) return;
+
+  const compareBtn = el.outputContent.querySelector('.compare-btn');
+  if (compareBtn) compareBtn.disabled = true;
+
+  compareSection.hidden = false;
+  compareSection.innerHTML = `
+    <div class="compare-wrap">
+      <div class="compare-loading">
+        <div class="loading-dots" style="transform:scale(0.75)"><span></span><span></span><span></span></div>
+        <span>Comparing across all platforms…</span>
+      </div>
+    </div>`;
+
+  const allPlatforms   = ['powerbi', 'tableau', 'looker'];
+  const otherPlatforms = allPlatforms.filter(p => p !== platform);
+
+  try {
+    const [r1, r2] = await Promise.all(
+      otherPlatforms.map(p =>
+        callGroq(STORY_PROMPTS[p], _currentQuery).then(parseGroqJSON).catch(() => null)
+      )
+    );
+
+    const results = {};
+    results[platform]          = _currentStory;
+    results[otherPlatforms[0]] = r1;
+    results[otherPlatforms[1]] = r2;
+
+    compareSection.innerHTML = `
+      <div class="compare-wrap">
+        <div class="compare-header">
+          <div class="section-label">Platform Comparison — Same Question</div>
+        </div>
+        <div class="compare-grid">
+          ${allPlatforms.map(p => {
+            const d    = results[p];
+            const meta = PLATFORM_META[p];
+            const isCurrent = p === platform;
+            if (!d || d.error) return `
+              <div class="compare-col${isCurrent ? ' compare-col--current' : ''}">
+                <div class="compare-platform-name">${isCurrent ? '★ ' : ''}${esc(meta.name)}</div>
+                <div class="compare-visual-name" style="color:var(--text-3);font-size:13px">—</div>
+              </div>`;
+            return `
+              <div class="compare-col${isCurrent ? ' compare-col--current' : ''}">
+                <div class="compare-platform-name">${isCurrent ? '★ ' : ''}${esc(meta.name)}</div>
+                <div class="compare-visual-name">${esc(d.recommended_visual)}</div>
+                <div class="compare-story-type">${esc(d.story_type)}</div>
+                <div class="compare-why">${esc(d.why_this_visual)}</div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  } catch (err) {
+    console.error('[DSN Compare]', err);
+    compareSection.innerHTML = `
+      <div class="compare-wrap">
+        <div class="rule-box mistake" style="margin:16px 26px 20px">Failed to compare platforms. Check your API key or try again.</div>
+      </div>`;
+  } finally {
+    if (compareBtn) compareBtn.disabled = false;
+  }
+}
+
 function highlightEmptySelects(selects) {
   selects.forEach(sel => {
     if (!sel.value) {
@@ -548,6 +603,13 @@ function highlightEmptySelects(selects) {
   if (first) first.focus();
 }
 
+function highlightField(field) {
+  if (!field) return;
+  field.style.borderColor = 'var(--error)';
+  field.focus();
+  setTimeout(() => { field.style.borderColor = ''; }, 2500);
+}
+
 // ===== OUTPUT HELPERS =====
 function showOutput(html) {
   el.outputPlaceholder.hidden = true;
@@ -557,7 +619,7 @@ function showOutput(html) {
 
 function showLoading() {
   showOutput(`
-    <div class="loading-card" role="status" aria-label="Generating story card">
+    <div class="loading-card" role="status" aria-label="Generating…">
       <div class="loading-dots"><span></span><span></span><span></span></div>
       <p class="loading-text">Generating your story card…</p>
     </div>`);
@@ -567,11 +629,11 @@ function showError(err) {
   console.error('[DSN]', err);
   const status = err?.status;
   let msg = 'Something went wrong. Try again in a moment.';
-  if (status === 401)          msg = 'Invalid API key. Go to Settings and paste your Groq key again.';
-  else if (status === 429)     msg = 'Rate limit reached. Wait a few seconds and try again.';
-  else if (status === 400)     msg = `Bad request — model may be unavailable. Open Settings and switch to a different model. (${esc(err.message)})`;
+  if (status === 401)               msg = 'Invalid API key. Go to Settings and paste your Groq key again.';
+  else if (status === 429)          msg = 'Rate limit reached. Wait a few seconds and try again.';
+  else if (status === 400)          msg = `Bad request — model may be unavailable. Open Settings and switch to a different model. (${esc(err.message)})`;
   else if (err instanceof TypeError) msg = 'Network error — check your internet connection and try again.';
-  else if (err?.message)       msg = `Error: ${esc(err.message)}`;
+  else if (err?.message)            msg = `Error: ${esc(err.message)}`;
 
   showOutput(`
     <div class="error-card" role="alert">
@@ -597,7 +659,6 @@ function renderStoryCard(d, query) {
 
   const meta         = PLATFORM_META[platform] || PLATFORM_META.powerbi;
   const ax           = d.axis_config || {};
-  const isDax        = platform === 'powerbi';
   const isBookmarked = bookmarks.some(b => b.id === _currentCardId);
 
   showOutput(`
@@ -650,12 +711,47 @@ function renderStoryCard(d, query) {
 
       <div class="card-foot">
         <button class="btn-primary copy-btn" aria-label="Copy story card to clipboard">Copy to Clipboard</button>
-        ${isDax ? '<button class="btn-secondary dax-btn" aria-label="Generate a DAX measure for this visual">Generate DAX</button>' : ''}
+        <button class="btn-secondary compare-btn" aria-label="Compare recommendations across all platforms">Compare Platforms</button>
         <button class="btn-ghost bookmark-btn${isBookmarked ? ' bookmarked' : ''}" aria-label="${isBookmarked ? 'Remove bookmark' : 'Bookmark this card'}">${isBookmarked ? '★ Bookmarked' : '☆ Bookmark'}</button>
         <span class="copy-confirm" id="copyConfirm" hidden aria-live="polite">Copied!</span>
       </div>
 
-      <div id="daxSection" hidden></div>
+      <div id="compareSection" hidden></div>
+    </div>`);
+}
+
+// ===== RENDER DAX CARD =====
+function renderDaxCard(data) {
+  _currentStory    = null;
+  _currentResult   = data;
+  _currentCardType = 'dax';
+  _currentQuery    = '';
+  _clipboardText   = data.dax_code || '';
+
+  showOutput(`
+    <div class="dax-card">
+      <div class="card-head">
+        <div class="platform-badge">Power BI · DAX</div>
+        <div class="story-badge">Generated Measure</div>
+        <div class="story-type-val">${esc(data.measure_name)}</div>
+      </div>
+
+      <div class="dax-code-block dax-card-code">
+        <div class="dax-code-head">
+          <span class="dax-measure-name">${esc(data.measure_name)}</span>
+        </div>
+        <pre class="dax-code">${esc(data.dax_code)}</pre>
+        <div class="dax-meta">
+          <p class="dax-explanation">${esc(data.explanation)}</p>
+          <p class="dax-assumptions">Assumptions: ${esc(data.assumptions)}</p>
+          ${data.usage_tip ? `<p class="dax-explanation" style="margin-top:6px;font-style:italic">Tip: ${esc(data.usage_tip)}</p>` : ''}
+        </div>
+      </div>
+
+      <div class="card-foot">
+        <button class="btn-primary copy-dax-btn" aria-label="Copy DAX measure to clipboard">Copy DAX</button>
+        <span class="copy-confirm" id="copyConfirm" hidden aria-live="polite">Copied!</span>
+      </div>
     </div>`);
 }
 

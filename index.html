@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Data Story Navigator — Visual Recommender for Power BI, Tableau &amp; Looker Studio</title>
   <meta name="description" content="Turn stakeholder business questions into the right data visual and story — for Power BI, Tableau, and Looker Studio. AI-powered, free, no install required.">
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
   <!-- Skip link for keyboard users -->
@@ -111,6 +111,7 @@
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-translator" data-target="translator">Translator</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-history" data-target="history">History</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-bookmarks" data-target="bookmarks">Bookmarks</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="panel-dax" data-target="dax">DAX Builder</button>
         </div>
 
         <!-- Panel: Plain English -->
@@ -250,6 +251,57 @@
             </div>
           </div>
         </section>
+
+        <!-- Panel: DAX Builder -->
+        <section class="tab-panel" id="panel-dax" role="tabpanel" hidden>
+          <div class="panel-inner">
+            <p class="panel-desc">Enter your table, columns, and calculation type — get a ready-to-paste Power BI DAX measure.</p>
+
+            <div class="field-group">
+              <label for="daxCalcType" class="field-label">What do you need to calculate?</label>
+              <select id="daxCalcType" class="select-field">
+                <option value="">Select calculation type…</option>
+                <option value="Year-to-Date Total">Year-to-Date Total (YTD)</option>
+                <option value="Same Period Last Year comparison">Same Period Last Year (SPLY)</option>
+                <option value="Running Total / Cumulative Sum">Running Total</option>
+                <option value="Actual vs Target — variance and percentage">Actual vs Target — Variance %</option>
+                <option value="Rolling average over N periods">Rolling Average</option>
+                <option value="Percentage of Total / Share">% of Total</option>
+                <option value="Count Distinct">Count Distinct</option>
+                <option value="Rank within category">Rank within Category</option>
+                <option value="Custom — described in notes">Custom (describe below)</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="daxTableName" class="field-label">Table name</label>
+              <input type="text" id="daxTableName" class="text-field" placeholder="e.g. Sales, Orders, Financials" autocomplete="off">
+            </div>
+
+            <div class="field-group">
+              <label for="daxColumns" class="field-label">Key column(s)</label>
+              <input type="text" id="daxColumns" class="text-field" placeholder="e.g. Amount, OrderDate, Region, Target" autocomplete="off">
+              <p class="field-hint">Separate multiple columns with commas</p>
+            </div>
+
+            <div class="field-group">
+              <label for="daxMeasureName" class="field-label">Measure name <span class="field-optional">(optional)</span></label>
+              <input type="text" id="daxMeasureName" class="text-field" placeholder="e.g. RevenueYTD — auto-generated if blank" autocomplete="off">
+            </div>
+
+            <div class="field-group">
+              <label for="daxNotes" class="field-label">Extra context <span class="field-optional">(optional)</span></label>
+              <textarea id="daxNotes" class="textarea-field" rows="2" placeholder="e.g. Filter by current year, compare against Budget table"></textarea>
+            </div>
+
+            <button class="btn-primary full-width" id="submitDaxBtn">
+              <span class="btn-label">Generate DAX Measure</span>
+              <span class="btn-spinner" hidden aria-hidden="true">
+                <span></span><span></span><span></span>
+              </span>
+            </button>
+          </div>
+        </section>
       </div>
 
       <!-- Right: Output Panel -->
@@ -274,6 +326,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
