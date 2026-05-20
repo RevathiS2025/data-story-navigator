@@ -110,7 +110,7 @@ STRICT RULES:
 
 };
 
-const DAX_BUILDER_PROMPT = `You are a Power BI DAX expert. Given a user-specified table name, column names, and calculation type, generate a practical, ready-to-use DAX measure.
+const DAX_BUILDER_PROMPT = `You are a Power BI DAX expert. Given a user's plain-English description of what they need to calculate, along with the table name and column names, generate a practical, ready-to-use DAX measure.
 
 Respond with ONLY a valid JSON object — no markdown, no code fences, no explanation. Raw JSON only.
 
@@ -163,7 +163,6 @@ const el = {
   daxTableName:        $('daxTableName'),
   daxColumns:          $('daxColumns'),
   daxMeasureName:      $('daxMeasureName'),
-  daxNotes:            $('daxNotes'),
   historyList:         $('historyList'),
   bookmarksList:       $('bookmarksList'),
   outputPlaceholder:   $('outputPlaceholder'),
@@ -428,23 +427,21 @@ async function handleGuided() {
 }
 
 async function handleDAXBuilder() {
-  const calcType    = el.daxCalcType?.value;
+  const calcType    = el.daxCalcType?.value.trim();
   const tableName   = el.daxTableName?.value.trim();
   const columns     = el.daxColumns?.value.trim();
   const measureName = el.daxMeasureName?.value.trim() || '';
-  const notes       = el.daxNotes?.value.trim() || '';
 
-  if (!calcType)  { highlightEmptySelects([el.daxCalcType]); return; }
+  if (!calcType)  { highlightField(el.daxCalcType); return; }
   if (!tableName) { highlightField(el.daxTableName); return; }
   if (!columns)   { highlightField(el.daxColumns); return; }
   if (!requireKey()) return;
 
   const userMsg = [
-    `Calculation type: ${calcType}`,
+    `What to calculate: ${calcType}`,
     `Table name: ${tableName}`,
     `Columns: ${columns}`,
     measureName ? `Desired measure name: ${measureName}` : '',
-    notes       ? `Additional context: ${notes}` : '',
   ].filter(Boolean).join('\n');
 
   setLoading(el.submitDaxBtn, true);

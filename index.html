@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Data Story Navigator — Visual Recommender for Power BI, Tableau &amp; Looker Studio</title>
   <meta name="description" content="Turn stakeholder business questions into the right data visual and story — for Power BI, Tableau, and Looker Studio. AI-powered, free, no install required.">
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
   <!-- Skip link for keyboard users -->
@@ -129,7 +129,7 @@
 
         <!-- Tab Bar -->
         <div class="tab-bar" role="tablist" aria-label="Input mode">
-          <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-plain" data-target="plain">Plain English</button>
+          <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-plain" data-target="plain">Ask</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-guided" data-target="guided">Guided</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-history" data-target="history">History</button>
           <button class="tab" role="tab" aria-selected="false" aria-controls="panel-bookmarks" data-target="bookmarks">Bookmarks</button>
@@ -139,7 +139,7 @@
         <!-- Panel: Plain English -->
         <section class="tab-panel" id="panel-plain" role="tabpanel">
           <div class="panel-inner">
-            <p class="panel-desc">Type the stakeholder question exactly as received, or rephrase it in plain English.</p>
+            <p class="panel-desc">Type the stakeholder question exactly as received, or rephrase it in your own words.</p>
             <div class="field-group">
               <label for="plainInput" class="sr-only">Stakeholder question</label>
               <textarea
@@ -247,22 +247,16 @@
         <!-- Panel: DAX Builder -->
         <section class="tab-panel" id="panel-dax" role="tabpanel" hidden>
           <div class="panel-inner">
-            <p class="panel-desc">Enter your table, columns, and calculation type — get a ready-to-paste Power BI DAX measure.</p>
+            <p class="panel-desc">Describe what you need to calculate in your own words — get a ready-to-paste Power BI DAX measure.</p>
 
             <div class="field-group">
-              <label for="daxCalcType" class="field-label">What do you need to calculate?</label>
-              <select id="daxCalcType" class="select-field">
-                <option value="">Select calculation type…</option>
-                <option value="Year-to-Date Total">Year-to-Date Total (YTD)</option>
-                <option value="Same Period Last Year comparison">Same Period Last Year (SPLY)</option>
-                <option value="Running Total / Cumulative Sum">Running Total</option>
-                <option value="Actual vs Target — variance and percentage">Actual vs Target — Variance %</option>
-                <option value="Rolling average over N periods">Rolling Average</option>
-                <option value="Percentage of Total / Share">% of Total</option>
-                <option value="Count Distinct">Count Distinct</option>
-                <option value="Rank within category">Rank within Category</option>
-                <option value="Custom — described in notes">Custom (describe below)</option>
-              </select>
+              <label for="daxCalcType" class="field-label">What do you want to calculate?</label>
+              <textarea
+                id="daxCalcType"
+                class="textarea-field"
+                rows="3"
+                placeholder="e.g. Total revenue for the current year compared to the same period last year&#10;e.g. % of sales each product contributes to the overall total&#10;e.g. Running cumulative sum of orders by month"
+              ></textarea>
             </div>
 
             <div class="field-group">
@@ -279,11 +273,6 @@
             <div class="field-group">
               <label for="daxMeasureName" class="field-label">Measure name <span class="field-optional">(optional)</span></label>
               <input type="text" id="daxMeasureName" class="text-field" placeholder="e.g. RevenueYTD — auto-generated if blank" autocomplete="off">
-            </div>
-
-            <div class="field-group">
-              <label for="daxNotes" class="field-label">Extra context <span class="field-optional">(optional)</span></label>
-              <textarea id="daxNotes" class="textarea-field" rows="2" placeholder="e.g. Filter by current year, compare against Budget table"></textarea>
             </div>
 
             <button class="btn-primary full-width" id="submitDaxBtn">
@@ -318,6 +307,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
