@@ -71,10 +71,11 @@ Required JSON structure:
 }
 
 STRICT RULES:
-1. Only recommend visuals from this list: Bar Chart, Column Chart, Line Chart, Area Chart, Clustered Bar Chart, Stacked Bar Chart, Clustered Column Chart, Stacked Column Chart, Donut Chart, Pie Chart, Card, Multi-row Card, KPI Visual, Matrix, Table, Scatter Chart, Map, Filled Map, Waterfall Chart, Ribbon Chart, Decomposition Tree, Gauge
+1. Only recommend visuals from this list: Bar Chart, Clustered Bar Chart, Stacked Bar Chart, 100% Stacked Bar Chart, Column Chart, Clustered Column Chart, Stacked Column Chart, 100% Stacked Column Chart, Line Chart, Area Chart, Stacked Area Chart, Line and Stacked Column Chart, Line and Clustered Column Chart, Donut Chart, Pie Chart, Funnel Chart, Treemap, Card, Multi-row Card, KPI Visual, Matrix, Table, Scatter Chart, Map, Filled Map, Shape Map, Waterfall Chart, Ribbon Chart, Decomposition Tree, Key Influencers, Gauge, Small Multiples
 2. Only recommend Pie or Donut if the question is genuinely about part-to-whole composition AND has fewer than 5 categories
 3. Never recommend a visual that does not exist natively in Power BI Desktop
-4. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
+4. Use these chart types for specific scenarios: Funnel Chart for pipeline/conversion stages, Treemap for hierarchical part-to-whole with many categories, 100% Stacked Bar/Column for normalized composition comparison, Stacked Area Chart for cumulative trend over time, Line and Stacked Column Chart for combining volume and trend, Waterfall Chart for variance and contribution analysis, Ribbon Chart for ranking changes over time, Decomposition Tree for root-cause exploration, Key Influencers for identifying what drives a metric, Small Multiples for comparing the same chart across multiple segments
+5. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
 
 tableau: `You are a Tableau data storytelling expert. A data analyst has received a stakeholder business question and needs to know the right data story type and Tableau chart type.
 
@@ -97,10 +98,10 @@ Required JSON structure:
 }
 
 STRICT RULES:
-1. Only recommend visuals from this list: Bar Chart, Horizontal Bar Chart, Line Chart, Area Chart, Scatter Plot, Pie Chart, Donut Chart, Filled Map, Symbol Map, Heatmap, Highlight Table, Text Table, Treemap, Dual Axis Chart, Box Plot, Histogram, Gantt Chart, Bullet Chart, Waterfall Chart, KPI (Big Number)
+1. Only recommend visuals from this list: Bar Chart, Stacked Bar Chart, Horizontal Bar Chart, Lollipop Chart, Line Chart, Step Line Chart, Area Chart, Stacked Area Chart, Scatter Plot, Packed Bubbles, Pie Chart, Donut Chart, Filled Map, Symbol Map, Density Map, Heatmap, Highlight Table, Text Table, Treemap, Dual Axis Chart, Combo Chart, Box Plot, Histogram, Gantt Chart, Bullet Chart, Waterfall Chart, Bump Chart, Slope Chart, KPI (Big Number)
 2. Only recommend Pie or Donut if the question is genuinely about part-to-whole composition AND has fewer than 5 categories
 3. Use Tableau-specific terminology — reference Columns shelf, Rows shelf, Marks card, Color/Size/Shape/Tooltip encodings
-4. Tableau has unique strengths: use Dual Axis Chart for overlay comparisons, Heatmap/Highlight Table for cross-dimensional analysis, Box Plot for distribution, Gantt for timeline — prefer these over generic charts when the question suits them
+4. Tableau has unique strengths — use these chart types for specific scenarios: Packed Bubbles for proportional comparison without ranked order, Density Map for geographic concentration, Step Line Chart for metrics that change discretely (e.g. pricing tiers, headcount), Bump Chart for ranking changes over time, Slope Chart for comparing exactly two time points, Lollipop Chart as a cleaner alternative to bar charts for single-series data, Stacked Area Chart for cumulative volume over time, Dual Axis Chart for comparing two different measures on the same timeline, Heatmap/Highlight Table for cross-dimensional pattern analysis, Box Plot for distribution spread, Gantt for timeline/project tracking
 5. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
 
 looker: `You are a Google Looker Studio data storytelling expert. A data analyst has received a stakeholder business question and needs to know the right data story type and Looker Studio chart type.
@@ -124,10 +125,10 @@ Required JSON structure:
 }
 
 STRICT RULES:
-1. Only recommend visuals from this list: Bar Chart, Column Chart, Line Chart, Area Chart, Scatter Chart, Pie Chart, Donut Chart, Table, Pivot Table, Scorecard, Geo Chart, Filled Map, Treemap, Gauge, Bullet Chart, Heatmap, Combo Chart, Funnel Chart
+1. Only recommend visuals from this list: Bar Chart, Stacked Bar Chart, 100% Stacked Bar Chart, Column Chart, Stacked Column Chart, 100% Stacked Column Chart, Line Chart, Smooth Line Chart, Area Chart, Stacked Area Chart, Scatter Chart, Bubble Chart, Pie Chart, Donut Chart, Table, Pivot Table, Scorecard, Geo Chart, Filled Map, Treemap, Gauge, Bullet Chart, Heatmap, Combo Chart, Funnel Chart, Sankey Chart, Timeline Chart
 2. Only recommend Pie or Donut if the question is genuinely about part-to-whole composition AND has fewer than 5 categories
 3. Use Looker Studio terminology — reference Dimensions, Metrics, Breakdown Dimension, Date Range Dimension
-4. Looker Studio strengths: Scorecard for KPI summaries, Combo Chart for dual-measure overlays, Funnel Chart for conversion flows, Pivot Table for cross-tab analysis — prefer these when the question suits them
+4. Looker Studio strengths — use these chart types for specific scenarios: Scorecard for KPI summaries, Combo Chart for dual-measure overlays, Funnel Chart for conversion/pipeline flows, Pivot Table for cross-tab analysis, Bubble Chart when a third numeric dimension (size) adds meaning to a scatter, Stacked Area Chart for cumulative volume over time, 100% Stacked Bar/Column for normalized composition comparison, Sankey Chart for flow or allocation between categories, Timeline Chart for event or milestone tracking, Smooth Line Chart when the trend direction matters more than individual data points, Heatmap for cross-dimensional intensity patterns
 5. If the input is not about data analysis or reporting, respond with exactly: {"error": "This does not look like a stakeholder question. Try something like: Show me how sales is doing."}`,
 
 };
@@ -990,22 +991,34 @@ function removeBookmark(id) {
 // ===== CHART SKETCHES =====
 function getChartSketch(visualName) {
   const v = (visualName || '').toLowerCase();
-  if (v.includes('waterfall'))                                          return sketchWaterfall();
-  if (v.includes('combo') || v.includes('dual axis'))                  return sketchCombo();
-  if (v.includes('horizontal bar'))                                     return sketchHBar();
-  if (v.includes('line') || v.includes('area'))                        return sketchLine();
-  if (v.includes('bar') || v.includes('column') || v.includes('histogram')) return sketchBar();
-  if (v.includes('donut') || v.includes('pie'))                        return sketchDonut();
-  if (v.includes('scatter') || v.includes('bubble'))                   return sketchScatter();
+  if (v.includes('waterfall'))                                                    return sketchWaterfall();
+  if (v.includes('sankey'))                                                       return sketchSankey();
+  if (v.includes('slope'))                                                        return sketchSlope();
+  if (v.includes('bump'))                                                         return sketchBump();
+  if (v.includes('lollipop'))                                                     return sketchLollipop();
+  if (v.includes('step line'))                                                    return sketchStepLine();
+  if (v.includes('packed bubble'))                                                return sketchPackedBubbles();
+  if (v.includes('combo') || v.includes('dual axis'))                            return sketchCombo();
+  if (v.includes('stacked area'))                                                 return sketchStackedArea();
+  if (v.includes('horizontal bar'))                                               return sketchHBar();
+  if (v.includes('100%') || v.includes('100 %') || v.includes('normalized'))     return sketchStackedBar();
+  if (v.includes('stacked bar') || v.includes('stacked column'))                 return sketchStackedBar();
+  if (v.includes('line') || v.includes('area') || v.includes('smooth'))         return sketchLine();
+  if (v.includes('bar') || v.includes('column') || v.includes('histogram'))     return sketchBar();
+  if (v.includes('donut') || v.includes('pie'))                                  return sketchDonut();
+  if (v.includes('bubble') || v.includes('scatter'))                             return sketchScatter();
   if (v.includes('card') || v.includes('kpi') || v.includes('scorecard') || v.includes('gauge') || v.includes('bullet')) return sketchKPI();
-  if (v.includes('map') || v.includes('geo'))                          return sketchMap();
-  if (v.includes('treemap'))                                            return sketchTreemap();
-  if (v.includes('heatmap') || v.includes('highlight table'))          return sketchHeatmap();
+  if (v.includes('density map') || v.includes('map') || v.includes('geo'))      return sketchMap();
+  if (v.includes('treemap'))                                                      return sketchTreemap();
+  if (v.includes('heatmap') || v.includes('highlight table'))                    return sketchHeatmap();
   if (v.includes('table') || v.includes('matrix') || v.includes('pivot') || v.includes('text table')) return sketchTable();
-  if (v.includes('funnel'))                                             return sketchFunnel();
-  if (v.includes('decomposition') || v.includes('tree'))               return sketchTree();
-  if (v.includes('box'))                                                return sketchBox();
-  if (v.includes('gantt'))                                              return sketchGantt();
+  if (v.includes('funnel'))                                                       return sketchFunnel();
+  if (v.includes('timeline'))                                                     return sketchGantt();
+  if (v.includes('key influencer') || v.includes('decomposition') || v.includes('tree')) return sketchTree();
+  if (v.includes('ribbon'))                                                       return sketchBump();
+  if (v.includes('box'))                                                          return sketchBox();
+  if (v.includes('gantt'))                                                        return sketchGantt();
+  if (v.includes('small multiple'))                                               return sketchSmallMultiples();
   return sketchBar();
 }
 
@@ -1184,6 +1197,117 @@ function sketchGantt() {
     <rect x="12" y="8"  width="48" height="11" rx="2" fill="var(--accent-h)" opacity="0.85"/>
     <rect x="30" y="25" width="58" height="11" rx="2" fill="var(--accent-2)" opacity="0.75"/>
     <rect x="12" y="42" width="36" height="11" rx="2" fill="var(--accent-h)" opacity="0.6"/>
+  </svg>`;
+}
+
+function sketchStackedBar() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="10" y="22" width="15" height="13" rx="1" fill="var(--accent-h)"  opacity="0.9"/>
+    <rect x="10" y="35" width="15" height="10" rx="1" fill="var(--accent-2)"  opacity="0.75"/>
+    <rect x="10" y="45" width="15" height="10" rx="1" fill="var(--text-3)"    opacity="0.45"/>
+    <rect x="30" y="12" width="15" height="17" rx="1" fill="var(--accent-h)"  opacity="0.9"/>
+    <rect x="30" y="29" width="15" height="14" rx="1" fill="var(--accent-2)"  opacity="0.75"/>
+    <rect x="30" y="43" width="15" height="12" rx="1" fill="var(--text-3)"    opacity="0.45"/>
+    <rect x="50" y="28" width="15" height="10" rx="1" fill="var(--accent-h)"  opacity="0.9"/>
+    <rect x="50" y="38" width="15" height="9"  rx="1" fill="var(--accent-2)"  opacity="0.75"/>
+    <rect x="50" y="47" width="15" height="8"  rx="1" fill="var(--text-3)"    opacity="0.45"/>
+    <rect x="70" y="18" width="15" height="15" rx="1" fill="var(--accent-h)"  opacity="0.9"/>
+    <rect x="70" y="33" width="15" height="12" rx="1" fill="var(--accent-2)"  opacity="0.75"/>
+    <rect x="70" y="45" width="15" height="10" rx="1" fill="var(--text-3)"    opacity="0.45"/>
+  </svg>`;
+}
+
+function sketchStackedArea() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <polygon points="5,55 5,42 25,36 50,30 75,22 95,16 95,55" fill="var(--accent-h)" opacity="0.3"/>
+    <polygon points="5,55 5,50 25,45 50,42 75,36 95,32 95,55" fill="var(--accent-2)" opacity="0.35"/>
+    <polyline points="5,42 25,36 50,30 75,22 95,16" fill="none" stroke="var(--accent-h)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="5,50 25,45 50,42 75,36 95,32" fill="none" stroke="var(--accent-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function sketchLollipop() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <line x1="17" y1="54" x2="17" y2="22" stroke="var(--accent-h)" stroke-width="1.5"/>
+    <circle cx="17" cy="20" r="4" fill="var(--accent-h)" opacity="0.9"/>
+    <line x1="37" y1="54" x2="37" y2="12" stroke="var(--accent-h)" stroke-width="1.5"/>
+    <circle cx="37" cy="10" r="4" fill="var(--accent-h)" opacity="0.9"/>
+    <line x1="57" y1="54" x2="57" y2="30" stroke="var(--accent-h)" stroke-width="1.5"/>
+    <circle cx="57" cy="28" r="4" fill="var(--accent-2)" opacity="0.9"/>
+    <line x1="77" y1="54" x2="77" y2="18" stroke="var(--accent-h)" stroke-width="1.5"/>
+    <circle cx="77" cy="16" r="4" fill="var(--accent-h)" opacity="0.9"/>
+  </svg>`;
+}
+
+function sketchSlope() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="20" y1="5"  x2="20" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <line x1="80" y1="5"  x2="80" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <line x1="20" y1="15" x2="80" y2="28" stroke="var(--accent-h)"  stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="20" y1="28" x2="80" y2="14" stroke="var(--accent-2)"  stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="20" y1="40" x2="80" y2="44" stroke="var(--text-3)"    stroke-width="2"   stroke-linecap="round" opacity="0.6"/>
+    <circle cx="20" cy="15" r="3.5" fill="var(--accent-h)"/>
+    <circle cx="80" cy="28" r="3.5" fill="var(--accent-h)"/>
+    <circle cx="20" cy="28" r="3.5" fill="var(--accent-2)"/>
+    <circle cx="80" cy="14" r="3.5" fill="var(--accent-2)"/>
+  </svg>`;
+}
+
+function sketchBump() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <polyline points="5,12 30,22 55,16 80,28 95,18" fill="none" stroke="var(--accent-h)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="5,22 30,12 55,30 80,16 95,28" fill="none" stroke="var(--accent-2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="5,35 30,40 55,22 80,40 95,36" fill="none" stroke="var(--text-3)"   stroke-width="2"   stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+    <text x="3"  y="14" font-size="7" fill="var(--accent-h)"  font-family="system-ui" font-weight="700">1</text>
+    <text x="3"  y="24" font-size="7" fill="var(--accent-2)"  font-family="system-ui" font-weight="700">2</text>
+    <text x="3"  y="37" font-size="7" fill="var(--text-3)"    font-family="system-ui" font-weight="700">3</text>
+  </svg>`;
+}
+
+function sketchStepLine() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <line x1="5" y1="5"  x2="5"  y2="55" stroke="var(--border)" stroke-width="1"/>
+    <polyline points="8,42 28,42 28,28 48,28 48,36 68,36 68,18 88,18 88,26" fill="none" stroke="var(--accent-h)" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="miter"/>
+  </svg>`;
+}
+
+function sketchPackedBubbles() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <circle cx="32" cy="30" r="20" fill="var(--accent-h)"  opacity="0.7"/>
+    <circle cx="68" cy="26" r="15" fill="var(--accent-2)"  opacity="0.65"/>
+    <circle cx="72" cy="48" r="10" fill="var(--accent-h)"  opacity="0.5"/>
+    <circle cx="18" cy="48" r="8"  fill="var(--accent-2)"  opacity="0.55"/>
+    <circle cx="88" cy="14" r="6"  fill="var(--text-3)"    opacity="0.4"/>
+  </svg>`;
+}
+
+function sketchSankey() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <rect x="4"  y="8"  width="8" height="44" rx="2" fill="var(--accent-h)"  opacity="0.85"/>
+    <rect x="88" y="8"  width="8" height="20" rx="2" fill="var(--accent-2)"  opacity="0.8"/>
+    <rect x="88" y="32" width="8" height="14" rx="2" fill="var(--accent-h)"  opacity="0.65"/>
+    <rect x="88" y="50" width="8" height="8"  rx="2" fill="var(--text-3)"    opacity="0.45"/>
+    <path d="M12,10 C50,10 50,12 88,12" fill="none" stroke="var(--accent-2)"  stroke-width="8"  opacity="0.35"/>
+    <path d="M12,32 C50,32 50,38 88,38" fill="none" stroke="var(--accent-h)"  stroke-width="6"  opacity="0.3"/>
+    <path d="M12,48 C50,48 50,53 88,53" fill="none" stroke="var(--text-3)"    stroke-width="4"  opacity="0.25"/>
+  </svg>`;
+}
+
+function sketchSmallMultiples() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <rect x="4"  y="4"  width="43" height="24" rx="2" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <rect x="53" y="4"  width="43" height="24" rx="2" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <rect x="4"  y="33" width="43" height="24" rx="2" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <rect x="53" y="33" width="43" height="24" rx="2" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <polyline points="8,24  18,18 28,20 44,10" fill="none" stroke="var(--accent-h)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="57,22 67,14 77,18 93,10" fill="none" stroke="var(--accent-2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="8,53  18,46 28,50 44,40" fill="none" stroke="var(--accent-h)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="57,50 67,44 77,48 93,38" fill="none" stroke="var(--accent-2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
 }
 
