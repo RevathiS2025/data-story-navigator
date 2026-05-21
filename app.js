@@ -149,7 +149,7 @@ Required JSON structure:
 RULES:
 1. Write realistic, syntactically correct DAX — not pseudocode or placeholder names
 2. Use the exact table and column names provided by the user
-3. Format dax_code with the measure name, equals sign, then the expression indented 4 spaces per level
+3. Format dax_code with the measure name, equals sign, then the expression indented 4 spaces per level — use VAR/RETURN pattern for any measure with more than one logical step
 4. For YTD: use TOTALYTD or CALCULATE with DATESYTD
 5. For same period last year: use CALCULATE with SAMEPERIODLASTYEAR
 6. For actual vs target: calculate absolute variance and % variance using DIVIDE to avoid division by zero
@@ -157,7 +157,13 @@ RULES:
 8. For rolling average: use AVERAGEX with DATESINPERIOD
 9. For % of total: use DIVIDE with CALCULATE and ALLSELECTED
 10. For rank: use RANKX with ALL on the category column
-11. Assume a Date table named 'Date' with a 'Date' column exists for time intelligence unless user specifies otherwise`;
+11. Assume a Date table named 'Date' with a 'Date' column exists for time intelligence unless user specifies otherwise
+12. For conditional categories or segments: use SWITCH(TRUE(), ...) with explicit IFERROR or BLANK() handling for edge cases
+13. For row-by-row aggregation across a table: use SUMX, COUNTX, AVERAGEX, MAXX, or MINX with the correct table and expression — never use SUM on a calculated expression
+14. For dynamic selection from a slicer or parameter table: use SELECTEDVALUE with a default fallback
+15. Always wrap DIVIDE(numerator, denominator, 0) — never use native division operator / on user data
+16. For error-safe measures: wrap the outer expression in IFERROR(..., BLANK()) only when the calculation genuinely risks a runtime error (e.g. date intelligence on a model without a proper date table)
+17. The output is always a measure, not a calculated column — write it as: MeasureName = expression`;
 
 // ===== DOM REFS =====
 const $  = id => document.getElementById(id);
@@ -376,7 +382,7 @@ function switchTab(target) {
 }
 
 // ===== GROQ API (STREAMING) =====
-async function callGroq(systemPrompt, userMessage, onChunk) {
+async function callGroq(systemPrompt, userMessage, onChunk, maxTokens = 1024) {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -390,7 +396,7 @@ async function callGroq(systemPrompt, userMessage, onChunk) {
         { role: 'user',   content: userMessage  },
       ],
       temperature: 0.3,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       stream: true,
     }),
   });
@@ -533,7 +539,7 @@ async function handleDAXBuilder() {
   showStreamingLoading();
 
   try {
-    const raw  = await callGroq(DAX_BUILDER_PROMPT, userMsg, updateStreamPreview);
+    const raw  = await callGroq(DAX_BUILDER_PROMPT, userMsg, updateStreamPreview, 2048);
     const data = parseGroqJSON(raw);
     _currentDaxCode  = data.dax_code || '';
     _currentCardId   = Date.now();
@@ -801,6 +807,10 @@ function renderDaxCard(data) {
           <p class="dax-assumptions">Assumptions: ${esc(data.assumptions)}</p>
           ${data.usage_tip ? `<p class="dax-explanation" style="margin-top:6px;font-style:italic">Tip: ${esc(data.usage_tip)}</p>` : ''}
         </div>
+      </div>
+
+      <div class="dax-test-note" role="note">
+        Always test in Power BI Desktop before publishing. Verify column and table names match your data model exactly.
       </div>
 
       <div class="card-foot">
@@ -1312,7 +1322,7 @@ function sketchSmallMultiples() {
 }
 
 // ===== SHAREABLE URL =====
-function handleShare() {
+async function handleShare() {
   if (!_currentQuery) return;
   const url = new URL(window.location.href);
   url.search = '';
@@ -1320,17 +1330,21 @@ function handleShare() {
   url.searchParams.set('p', platform);
   const shareUrl = url.toString();
 
-  navigator.clipboard.writeText(shareUrl).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = shareUrl;
-    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  });
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+  } catch {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = shareUrl;
+      ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch {}
+  }
 
-  history.pushState(null, '', shareUrl);
+  try { history.pushState(null, '', shareUrl); } catch {}
 
   const btn = el.outputContent.querySelector('.share-btn');
   if (btn) {
