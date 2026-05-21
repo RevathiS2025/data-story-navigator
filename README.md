@@ -4,7 +4,7 @@
 
 A free, browser-based tool that takes a stakeholder question in plain English and returns a specific visual recommendation with axis config, common mistakes, accessibility tips, and an alternative visual — for **Power BI, Tableau, and Looker Studio**. Powered by the Groq free API.
 
-🔗 **Live app:** [revathis2025.github.io/data-story-navigator](https://revathis2025.github.io/data-story-navigator)
+🔗 **Live app:** [data-story-navigator.vercel.app](https://data-story-navigator.vercel.app)
 
 ---
 
@@ -18,12 +18,12 @@ You type what your stakeholder asked. The app tells you:
 - Which **data story type** applies (e.g. Performance Tracking — Trend Over Time)
 - Which **visual** to use in your chosen platform
 - **Why** that visual works for this question
-- **Axis configuration** — what goes on each axis and the color/legend field
+- **Field configuration** — what goes on each axis, colour, and legend (platform-specific)
 - The **most common mistake** to avoid with that visual
 - An **accessibility tip** specific to your platform
 - An **alternative visual** and when to use it instead
 
-For Power BI users, you can also generate a **ready-to-paste DAX measure** matched to the story card.
+You can also **compare all three platforms side by side** and generate a **ready-to-paste DAX measure** for Power BI.
 
 ---
 
@@ -31,16 +31,24 @@ For Power BI users, you can also generate a **ready-to-paste DAX measure** match
 
 | Feature | Description |
 |---|---|
-| Plain English input | Type the stakeholder question exactly as received |
-| Guided Mode | Answer 3 dropdowns (intent / audience / data grain) |
-| Stakeholder Translator | Paste a vague request — get back what it means in data terms, what data you need, and what to ask back |
-| Multi-platform | Switch between Power BI, Tableau, and Looker Studio — each with platform-specific terminology and visual lists |
-| DAX Measure Generator | Power BI only — generates a ready-to-paste DAX measure matched to the story card |
-| Persistent Bookmarks | Save story cards to localStorage so they survive tab close — replay any saved card in one click |
-| Session History | Last 10 results saved per session — clears when the tab closes |
-| Copy to Clipboard | Full story card copied as plain text in one click |
-| Dark / Light theme | Toggle between dark and light mode — preference saved across sessions |
-| Settings | Paste your Groq API key once — stored in localStorage, never sent anywhere except Groq |
+| **Ask** | Type the stakeholder question in plain English and get a full story card |
+| **DAX Builder** | Describe what you want to calculate — get a ready-to-paste Power BI DAX measure |
+| **New to this?** | Guided mode — answer 3 dropdowns (intent / audience / data grain) to build a recommendation |
+| **Compare Platforms** | See how chart recommendations differ across Power BI, Tableau, and Looker Studio side by side |
+| **Multi-platform** | Switch between Power BI, Tableau, and Looker Studio — each has platform-specific visual lists and terminology |
+| **Persistent Bookmarks** | Save story cards to localStorage — survive tab close, accessible from the Bookmarks tab |
+| **Session History** | Last 10 results saved per session — clears when the tab closes |
+| **Copy to Clipboard** | Full story card or DAX code copied in one click |
+| **Dark / Light theme** | Toggle between dark and light mode — preference saved across sessions |
+| **Settings** | Paste your Groq API key once — stored in localStorage, never sent anywhere except Groq |
+
+---
+
+## Tab layout
+
+```
+Ask  |  DAX Builder  |  New to this?  |  Bookmarks  |  History
+```
 
 ---
 
@@ -70,13 +78,14 @@ app.js
 | Layer | Technology |
 |---|---|
 | UI | HTML + CSS + Vanilla JavaScript |
-| AI | Groq free API (Llama 3.3 70B) |
+| AI | Groq free API (Llama 3.3 70B default; Llama 3.1 8B and Mixtral also available) |
 | API calls | `fetch()` from browser directly to Groq |
+| Parallel calls | `Promise.all()` — used for Compare Platforms feature |
 | Key storage | Browser `localStorage` |
 | Bookmarks | Browser `localStorage` (persistent across sessions) |
 | Session history | Browser `sessionStorage` |
 | Text copy | Clipboard API |
-| Hosting | GitHub Pages |
+| Hosting | Vercel (auto-deploys from GitHub `main`) |
 | Dependencies | None — no npm, no build step |
 
 ---
@@ -100,7 +109,7 @@ Bar Chart · Column Chart · Line Chart · Area Chart · Scatter Chart · Pie ·
 - Junior analysts who have the numbers but are unsure how to frame the narrative
 - Career returners rebuilding confidence in report design after a career break
 - SQL and BI tool learners working on the storytelling layer
-- Anyone who has received a vague stakeholder request and needs to translate it into a report
+- Anyone who has received a vague stakeholder request and needs to turn it into a report
 
 ---
 
