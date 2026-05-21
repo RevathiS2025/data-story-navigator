@@ -260,14 +260,15 @@
             </div>
 
             <div class="field-group">
-              <label for="daxTableName" class="field-label">Table name</label>
-              <input type="text" id="daxTableName" class="text-field" placeholder="e.g. Sales, Orders, Financials" autocomplete="off">
+              <label for="daxTableName" class="field-label">Main table name</label>
+              <input type="text" id="daxTableName" class="text-field" placeholder="e.g. Sales" autocomplete="off">
+              <p class="field-hint">One table name — the primary fact table your measure reads from. A Date table is assumed automatically for time intelligence.</p>
             </div>
 
             <div class="field-group">
-              <label for="daxColumns" class="field-label">Key column(s)</label>
-              <input type="text" id="daxColumns" class="text-field" placeholder="e.g. Amount, OrderDate, Region, Target" autocomplete="off">
-              <p class="field-hint">Separate multiple columns with commas</p>
+              <label for="daxColumns" class="field-label">Column names</label>
+              <input type="text" id="daxColumns" class="text-field" placeholder="e.g. Amount, OrderDate, Region" autocomplete="off">
+              <p class="field-hint">Exact column names from your data model, separated by commas — not descriptions</p>
             </div>
 
             <div class="field-group">
