@@ -251,6 +251,16 @@ function applyPlatform() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
+
+  const daxTab   = document.querySelector('.tab[data-target="dax"]');
+  const daxPanel = $('panel-dax');
+  const isPowerBI = platform === 'powerbi';
+
+  if (daxTab) daxTab.hidden = !isPowerBI;
+
+  if (!isPowerBI && daxPanel && !daxPanel.hidden) {
+    switchTab('plain');
+  }
 }
 
 function switchPlatform(p) {
