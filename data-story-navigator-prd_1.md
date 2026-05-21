@@ -166,14 +166,14 @@ The platform switcher (Power BI / Tableau / Looker Studio) controls which system
 - Platform-specific terminology (e.g. "Columns shelf" for Tableau, "Dimension" for Looker Studio)
 - Platform-appropriate implementation notes
 
-**Power BI visual coverage:**  
-Bar Chart · Column Chart · Line Chart · Area Chart · Clustered Bar · Stacked Bar · Clustered Column · Stacked Column · Donut · Pie · Card · Multi-row Card · KPI Visual · Matrix · Table · Scatter Chart · Map · Filled Map · Waterfall Chart · Ribbon Chart · Decomposition Tree · Gauge
+**Power BI visual coverage (32):**  
+Bar Chart · Clustered Bar Chart · Stacked Bar Chart · 100% Stacked Bar Chart · Column Chart · Clustered Column Chart · Stacked Column Chart · 100% Stacked Column Chart · Line Chart · Area Chart · Stacked Area Chart · Line and Stacked Column Chart · Line and Clustered Column Chart · Donut Chart · Pie Chart · Funnel Chart · Treemap · Card · Multi-row Card · KPI Visual · Matrix · Table · Scatter Chart · Map · Filled Map · Shape Map · Waterfall Chart · Ribbon Chart · Decomposition Tree · Key Influencers · Gauge · Small Multiples
 
-**Tableau visual coverage:**  
-Bar Chart · Horizontal Bar Chart · Line Chart · Area Chart · Scatter Plot · Pie · Donut · Filled Map · Symbol Map · Heatmap · Highlight Table · Text Table · Treemap · Dual Axis · Box Plot · Histogram · Gantt Chart · Bullet Chart · Waterfall Chart · KPI (Big Number)
+**Tableau visual coverage (29):**  
+Bar Chart · Stacked Bar Chart · Horizontal Bar Chart · Lollipop Chart · Line Chart · Step Line Chart · Area Chart · Stacked Area Chart · Scatter Plot · Packed Bubbles · Pie Chart · Donut Chart · Filled Map · Symbol Map · Density Map · Heatmap · Highlight Table · Text Table · Treemap · Dual Axis Chart · Combo Chart · Box Plot · Histogram · Gantt Chart · Bullet Chart · Waterfall Chart · Bump Chart · Slope Chart · KPI (Big Number)
 
-**Looker Studio visual coverage:**  
-Bar Chart · Column Chart · Line Chart · Area Chart · Scatter Chart · Pie · Donut · Table · Pivot Table · Scorecard · Geo Chart · Filled Map · Treemap · Gauge · Bullet Chart · Heatmap · Combo Chart · Funnel Chart
+**Looker Studio visual coverage (27):**  
+Bar Chart · Stacked Bar Chart · 100% Stacked Bar Chart · Column Chart · Stacked Column Chart · 100% Stacked Column Chart · Line Chart · Smooth Line Chart · Area Chart · Stacked Area Chart · Scatter Chart · Bubble Chart · Pie Chart · Donut Chart · Table · Pivot Table · Scorecard · Geo Chart · Filled Map · Treemap · Gauge · Bullet Chart · Heatmap · Combo Chart · Funnel Chart · Sankey Chart · Timeline Chart
 
 ---
 
@@ -250,11 +250,12 @@ Returns a dedicated DAX card with:
 Three platform-specific system prompts are used — one for Power BI, one for Tableau, one for Looker Studio. Each prompt:
 
 - Constrains the AI to respond only in the defined story card format
-- Restricts visual recommendations to the correct platform visual list
+- Restricts visual recommendations to the correct platform visual list (32 / 29 / 27 visuals respectively)
 - Uses the correct platform terminology for axis/field configuration
 - Discourages pie/donut charts unless the use case is genuinely compositional with under 5 categories
 - Returns output as structured JSON so the app can render each field separately
 - Never recommends visuals that do not exist natively in the target platform
+- Includes explicit scenario guidance for less obvious chart types (e.g. when to use Sankey vs Funnel, Bump Chart vs Line Chart, Packed Bubbles vs Bar Chart)
 
 A fourth prompt is used for the DAX Builder — it accepts a plain-English calculation description and returns a named DAX measure with explanation.
 

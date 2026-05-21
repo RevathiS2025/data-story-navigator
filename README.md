@@ -92,14 +92,14 @@ app.js
 
 ## Platforms supported
 
-### Power BI
-Bar Chart · Column Chart · Line Chart · Area Chart · Clustered Bar · Stacked Bar · Clustered Column · Stacked Column · Donut · Pie · Card · Multi-row Card · KPI Visual · Matrix · Table · Scatter Chart · Map · Filled Map · Waterfall Chart · Ribbon Chart · Decomposition Tree · Gauge
+### Power BI (32 visuals)
+Bar Chart · Clustered Bar Chart · Stacked Bar Chart · 100% Stacked Bar Chart · Column Chart · Clustered Column Chart · Stacked Column Chart · 100% Stacked Column Chart · Line Chart · Area Chart · Stacked Area Chart · Line and Stacked Column Chart · Line and Clustered Column Chart · Donut Chart · Pie Chart · Funnel Chart · Treemap · Card · Multi-row Card · KPI Visual · Matrix · Table · Scatter Chart · Map · Filled Map · Shape Map · Waterfall Chart · Ribbon Chart · Decomposition Tree · Key Influencers · Gauge · Small Multiples
 
-### Tableau
-Bar Chart · Horizontal Bar Chart · Line Chart · Area Chart · Scatter Plot · Pie · Donut · Filled Map · Symbol Map · Heatmap · Highlight Table · Text Table · Treemap · Dual Axis · Box Plot · Histogram · Gantt Chart · Bullet Chart · Waterfall Chart · KPI (Big Number)
+### Tableau (29 visuals)
+Bar Chart · Stacked Bar Chart · Horizontal Bar Chart · Lollipop Chart · Line Chart · Step Line Chart · Area Chart · Stacked Area Chart · Scatter Plot · Packed Bubbles · Pie Chart · Donut Chart · Filled Map · Symbol Map · Density Map · Heatmap · Highlight Table · Text Table · Treemap · Dual Axis Chart · Combo Chart · Box Plot · Histogram · Gantt Chart · Bullet Chart · Waterfall Chart · Bump Chart · Slope Chart · KPI (Big Number)
 
-### Looker Studio
-Bar Chart · Column Chart · Line Chart · Area Chart · Scatter Chart · Pie · Donut · Table · Pivot Table · Scorecard · Geo Chart · Filled Map · Treemap · Gauge · Bullet Chart · Heatmap · Combo Chart · Funnel Chart
+### Looker Studio (27 visuals)
+Bar Chart · Stacked Bar Chart · 100% Stacked Bar Chart · Column Chart · Stacked Column Chart · 100% Stacked Column Chart · Line Chart · Smooth Line Chart · Area Chart · Stacked Area Chart · Scatter Chart · Bubble Chart · Pie Chart · Donut Chart · Table · Pivot Table · Scorecard · Geo Chart · Filled Map · Treemap · Gauge · Bullet Chart · Heatmap · Combo Chart · Funnel Chart · Sankey Chart · Timeline Chart
 
 ---
 
