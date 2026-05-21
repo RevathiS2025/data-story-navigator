@@ -90,19 +90,6 @@ app.js
 
 ---
 
-## Platforms supported
-
-### Power BI (32 visuals)
-Bar Chart · Clustered Bar Chart · Stacked Bar Chart · 100% Stacked Bar Chart · Column Chart · Clustered Column Chart · Stacked Column Chart · 100% Stacked Column Chart · Line Chart · Area Chart · Stacked Area Chart · Line and Stacked Column Chart · Line and Clustered Column Chart · Donut Chart · Pie Chart · Funnel Chart · Treemap · Card · Multi-row Card · KPI Visual · Matrix · Table · Scatter Chart · Map · Filled Map · Shape Map · Waterfall Chart · Ribbon Chart · Decomposition Tree · Key Influencers · Gauge · Small Multiples
-
-### Tableau (29 visuals)
-Bar Chart · Stacked Bar Chart · Horizontal Bar Chart · Lollipop Chart · Line Chart · Step Line Chart · Area Chart · Stacked Area Chart · Scatter Plot · Packed Bubbles · Pie Chart · Donut Chart · Filled Map · Symbol Map · Density Map · Heatmap · Highlight Table · Text Table · Treemap · Dual Axis Chart · Combo Chart · Box Plot · Histogram · Gantt Chart · Bullet Chart · Waterfall Chart · Bump Chart · Slope Chart · KPI (Big Number)
-
-### Looker Studio (27 visuals)
-Bar Chart · Stacked Bar Chart · 100% Stacked Bar Chart · Column Chart · Stacked Column Chart · 100% Stacked Column Chart · Line Chart · Smooth Line Chart · Area Chart · Stacked Area Chart · Scatter Chart · Bubble Chart · Pie Chart · Donut Chart · Table · Pivot Table · Scorecard · Geo Chart · Filled Map · Treemap · Gauge · Bullet Chart · Heatmap · Combo Chart · Funnel Chart · Sankey Chart · Timeline Chart
-
----
-
 ## Who this is for
 
 - Data analysts who know their data but want confident visual decisions before presenting
