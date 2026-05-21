@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Data Story Navigator — Visual Recommender for Power BI, Tableau &amp; Looker Studio</title>
   <meta name="description" content="Turn stakeholder business questions into the right data visual and story — for Power BI, Tableau, and Looker Studio. AI-powered, free, no install required.">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
   <!-- Skip link for keyboard users -->
@@ -150,7 +150,7 @@
                 aria-label="Type your stakeholder question"
               ></textarea>
             </div>
-            <div class="chip-row" aria-label="Example questions">
+            <div class="chip-row" id="askChipRow" aria-label="Example questions">
               <span class="chip-label">Try:</span>
               <button class="chip" data-fill="plainInput">Show me how sales is doing</button>
               <button class="chip" data-fill="plainInput">Why did revenue drop last month</button>
@@ -275,6 +275,14 @@
               <input type="text" id="daxMeasureName" class="text-field" placeholder="e.g. RevenueYTD — auto-generated if blank" autocomplete="off">
             </div>
 
+            <div class="chip-row" aria-label="Example calculations">
+              <span class="chip-label">Try:</span>
+              <button class="chip" data-fill="daxCalcType">Year-to-date revenue</button>
+              <button class="chip" data-fill="daxCalcType">% contribution to total</button>
+              <button class="chip" data-fill="daxCalcType">Same period last year comparison</button>
+              <button class="chip" data-fill="daxCalcType">Running cumulative sum by month</button>
+            </div>
+
             <button class="btn-primary full-width" id="submitDaxBtn">
               <span class="btn-label">Generate DAX Measure</span>
               <span class="btn-spinner" hidden aria-hidden="true">
@@ -307,6 +315,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

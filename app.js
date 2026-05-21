@@ -25,6 +25,28 @@ const PLATFORM_META = {
   looker:  { name: 'Looker Studio',   axis: { x: 'Dimension', y: 'Metric',  color: 'Breakdown' } },
 };
 
+// ===== PLATFORM CHIPS =====
+const PLATFORM_CHIPS = {
+  powerbi: [
+    'Show me how sales is doing',
+    'Why did revenue drop last month',
+    'Which region is performing best',
+    'Are we on track to hit our target',
+  ],
+  tableau: [
+    'Compare sales performance by category',
+    'Show me revenue trend over the last 12 months',
+    'Which products have the highest profit margin',
+    'How are our top 10 customers performing',
+  ],
+  looker: [
+    'What is our website traffic by channel',
+    'Show me conversion rate by campaign',
+    'Which pages have the highest bounce rate',
+    'How is our revenue trending this quarter',
+  ],
+};
+
 // ===== SYSTEM PROMPTS =====
 const STORY_PROMPTS = {
 
@@ -207,11 +229,23 @@ function init() {
 
   el.plainInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePlain(); } });
 
-  document.querySelectorAll('.chip[data-fill]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const target = $(chip.dataset.fill);
-      if (target) { target.value = chip.textContent.trim(); target.focus(); }
-    });
+  // Ctrl+Enter / Cmd+Enter submits from any active panel
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      const active = document.querySelector('.tab-panel:not([hidden])');
+      if (!active) return;
+      if (active.id === 'panel-plain')   { e.preventDefault(); handlePlain(); }
+      if (active.id === 'panel-guided')  { e.preventDefault(); handleGuided(); }
+      if (active.id === 'panel-dax')     { e.preventDefault(); handleDAXBuilder(); }
+    }
+  });
+
+  // Chip clicks — delegated so platform-refreshed chips also work
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('.chip[data-fill]');
+    if (!chip) return;
+    const target = $(chip.dataset.fill);
+    if (target) { target.value = chip.textContent.trim(); target.focus(); }
   });
 
   el.outputContent.addEventListener('click', e => {
@@ -219,7 +253,10 @@ function init() {
     if (e.target.closest('.copy-dax-btn')) handleCopyDAX();
     if (e.target.closest('.bookmark-btn')) handleBookmark();
     if (e.target.closest('.compare-btn'))  handleCompare();
+    if (e.target.closest('.share-btn'))    handleShare();
   });
+
+  checkURLParams();
 
   el.bookmarksList?.addEventListener('click', e => {
     const replayBtn = e.target.closest('.bookmark-replay-btn');
@@ -257,9 +294,15 @@ function applyPlatform() {
   const isPowerBI = platform === 'powerbi';
 
   if (daxTab) daxTab.hidden = !isPowerBI;
+  if (!isPowerBI && daxPanel && !daxPanel.hidden) switchTab('plain');
 
-  if (!isPowerBI && daxPanel && !daxPanel.hidden) {
-    switchTab('plain');
+  // Refresh Ask chips for selected platform
+  const chipRow = $('askChipRow');
+  if (chipRow) {
+    const chips = (PLATFORM_CHIPS[platform] || PLATFORM_CHIPS.powerbi)
+      .map(q => `<button class="chip" data-fill="plainInput">${esc(q)}</button>`)
+      .join('');
+    chipRow.innerHTML = `<span class="chip-label">Try:</span>${chips}`;
   }
 }
 
@@ -331,8 +374,8 @@ function switchTab(target) {
 
 }
 
-// ===== GROQ API =====
-async function callGroq(systemPrompt, userMessage) {
+// ===== GROQ API (STREAMING) =====
+async function callGroq(systemPrompt, userMessage, onChunk) {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -347,6 +390,7 @@ async function callGroq(systemPrompt, userMessage) {
       ],
       temperature: 0.3,
       max_tokens: 1024,
+      stream: true,
     }),
   });
 
@@ -358,8 +402,38 @@ async function callGroq(systemPrompt, userMessage) {
     throw err;
   }
 
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  const reader  = res.body.getReader();
+  const decoder = new TextDecoder();
+  let accumulated = '';
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data: ')) continue;
+        const jsonStr = trimmed.slice(6).trim();
+        if (jsonStr === '[DONE]') continue;
+        try {
+          const parsed  = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content || '';
+          if (content) {
+            accumulated += content;
+            if (onChunk) onChunk(accumulated);
+          }
+        } catch {}
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return accumulated;
 }
 
 function parseGroqJSON(raw) {
@@ -393,10 +467,10 @@ async function handlePlain() {
   if (!requireKey()) return;
 
   setLoading(el.submitPlainBtn, true);
-  showLoading();
+  showStreamingLoading();
 
   try {
-    const raw  = await callGroq(getStoryPrompt(), q);
+    const raw  = await callGroq(getStoryPrompt(), q, updateStreamPreview);
     const data = parseGroqJSON(raw);
     if (data.error) { showSoft(data.error); }
     else { saveHistory(q, data, 'story'); renderStoryCard(data, q); }
@@ -422,10 +496,10 @@ async function handleGuided() {
   const displayQ = `${intent} · ${audience} · ${grain}`;
 
   setLoading(el.submitGuidedBtn, true);
-  showLoading();
+  showStreamingLoading();
 
   try {
-    const raw  = await callGroq(getStoryPrompt(), q);
+    const raw  = await callGroq(getStoryPrompt(), q, updateStreamPreview);
     const data = parseGroqJSON(raw);
     if (data.error) { showSoft(data.error); }
     else { saveHistory(displayQ, data, 'story'); renderStoryCard(data, displayQ); }
@@ -455,12 +529,13 @@ async function handleDAXBuilder() {
   ].filter(Boolean).join('\n');
 
   setLoading(el.submitDaxBtn, true);
-  showLoading();
+  showStreamingLoading();
 
   try {
-    const raw  = await callGroq(DAX_BUILDER_PROMPT, userMsg);
+    const raw  = await callGroq(DAX_BUILDER_PROMPT, userMsg, updateStreamPreview);
     const data = parseGroqJSON(raw);
-    _currentDaxCode = data.dax_code || '';
+    _currentDaxCode  = data.dax_code || '';
+    _currentCardId   = Date.now();
     renderDaxCard(data);
   } catch (err) {
     showError(err);
@@ -515,7 +590,7 @@ async function handleCompare() {
   try {
     const [r1, r2] = await Promise.all(
       otherPlatforms.map(p =>
-        callGroq(STORY_PROMPTS[p], _currentQuery).then(parseGroqJSON).catch(() => null)
+        callGroq(STORY_PROMPTS[p], _currentQuery, null).then(parseGroqJSON).catch(() => null)
       )
     );
 
@@ -585,12 +660,19 @@ function showOutput(html) {
   el.outputContent.innerHTML = html;
 }
 
-function showLoading() {
+function showStreamingLoading() {
   showOutput(`
     <div class="loading-card" role="status" aria-label="Generating…">
       <div class="loading-dots"><span></span><span></span><span></span></div>
       <p class="loading-text">Generating your story card…</p>
+      <pre class="stream-preview" id="streamPreview" aria-hidden="true"></pre>
     </div>`);
+}
+
+function updateStreamPreview(text) {
+  const preview = document.getElementById('streamPreview');
+  if (!preview) return;
+  preview.textContent = text.length > 160 ? '…' + text.slice(-160) : text;
 }
 
 function showError(err) {
@@ -639,8 +721,11 @@ function renderStoryCard(d, query) {
       </div>
 
       <div class="visual-hero">
-        <div class="visual-name">${esc(d.recommended_visual)}</div>
-        <div class="visual-why">${esc(d.why_this_visual)}</div>
+        <div class="visual-hero-left">
+          <div class="visual-name">${esc(d.recommended_visual)}</div>
+          <div class="visual-why">${esc(d.why_this_visual)}</div>
+        </div>
+        <div class="chart-sketch-wrap" aria-hidden="true">${getChartSketch(d.recommended_visual)}</div>
       </div>
 
       <div class="card-body">
@@ -680,6 +765,7 @@ function renderStoryCard(d, query) {
       <div class="card-foot">
         <button class="btn-primary copy-btn" aria-label="Copy story card to clipboard">Copy to Clipboard</button>
         <button class="btn-secondary compare-btn" aria-label="Compare recommendations across all platforms">Compare Platforms</button>
+        <button class="btn-secondary share-btn" aria-label="Copy shareable link to clipboard">Share Link</button>
         <button class="btn-ghost bookmark-btn${isBookmarked ? ' bookmarked' : ''}" aria-label="${isBookmarked ? 'Remove bookmark' : 'Bookmark this card'}">${isBookmarked ? '★ Bookmarked' : '☆ Bookmark'}</button>
         <span class="copy-confirm" id="copyConfirm" hidden aria-live="polite">Copied!</span>
       </div>
@@ -718,6 +804,7 @@ function renderDaxCard(data) {
 
       <div class="card-foot">
         <button class="btn-primary copy-dax-btn" aria-label="Copy DAX measure to clipboard">Copy DAX</button>
+        <button class="btn-ghost bookmark-btn" aria-label="Bookmark this measure">☆ Bookmark</button>
         <span class="copy-confirm" id="copyConfirm" hidden aria-live="polite">Copied!</span>
       </div>
     </div>`);
@@ -807,8 +894,7 @@ function replayHistory(id) {
   _currentCardId = entry.id;
   if (entry.platform) switchPlatform(entry.platform);
   switchTab('plain');
-  if (entry.type === 'story') renderStoryCard(entry.result, entry.query);
-  else renderTranslatorCard(entry.result, entry.query);
+  renderStoryCard(entry.result, entry.query);
 }
 
 // ===== PERSISTENT BOOKMARKS =====
@@ -875,8 +961,14 @@ function replayBookmark(id) {
   _currentCardId = entry.id;
   if (entry.platform) switchPlatform(entry.platform);
   switchTab('plain');
-  if (entry.type === 'story') renderStoryCard(entry.result, entry.query);
-  else renderTranslatorCard(entry.result, entry.query);
+  if (entry.type === 'dax') {
+    _currentDaxCode  = entry.result?.dax_code || '';
+    _currentCardType = 'dax';
+    _currentResult   = entry.result;
+    renderDaxCard(entry.result);
+  } else {
+    renderStoryCard(entry.result, entry.query);
+  }
 }
 
 function removeBookmark(id) {
@@ -892,6 +984,250 @@ function removeBookmark(id) {
       btn.classList.remove('bookmarked');
       btn.setAttribute('aria-label', 'Bookmark this card');
     }
+  }
+}
+
+// ===== CHART SKETCHES =====
+function getChartSketch(visualName) {
+  const v = (visualName || '').toLowerCase();
+  if (v.includes('waterfall'))                                          return sketchWaterfall();
+  if (v.includes('combo') || v.includes('dual axis'))                  return sketchCombo();
+  if (v.includes('horizontal bar'))                                     return sketchHBar();
+  if (v.includes('line') || v.includes('area'))                        return sketchLine();
+  if (v.includes('bar') || v.includes('column') || v.includes('histogram')) return sketchBar();
+  if (v.includes('donut') || v.includes('pie'))                        return sketchDonut();
+  if (v.includes('scatter') || v.includes('bubble'))                   return sketchScatter();
+  if (v.includes('card') || v.includes('kpi') || v.includes('scorecard') || v.includes('gauge') || v.includes('bullet')) return sketchKPI();
+  if (v.includes('map') || v.includes('geo'))                          return sketchMap();
+  if (v.includes('treemap'))                                            return sketchTreemap();
+  if (v.includes('heatmap') || v.includes('highlight table'))          return sketchHeatmap();
+  if (v.includes('table') || v.includes('matrix') || v.includes('pivot') || v.includes('text table')) return sketchTable();
+  if (v.includes('funnel'))                                             return sketchFunnel();
+  if (v.includes('decomposition') || v.includes('tree'))               return sketchTree();
+  if (v.includes('box'))                                                return sketchBox();
+  if (v.includes('gantt'))                                              return sketchGantt();
+  return sketchBar();
+}
+
+function sketchLine() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <line x1="5" y1="5" x2="5" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <polyline points="8,48 22,33 38,38 54,18 68,26 84,10 96,16" fill="none" stroke="var(--accent-h)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="54" cy="18" r="3" fill="var(--accent-h)"/>
+  </svg>`;
+}
+
+function sketchBar() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="10" y="22" width="15" height="33" rx="2" fill="var(--accent-h)" opacity="0.85"/>
+    <rect x="30" y="12" width="15" height="43" rx="2" fill="var(--accent-h)" opacity="0.7"/>
+    <rect x="50" y="32" width="15" height="23" rx="2" fill="var(--accent-h)" opacity="0.8"/>
+    <rect x="70" y="18" width="15" height="37" rx="2" fill="var(--accent-2)" opacity="0.75"/>
+  </svg>`;
+}
+
+function sketchHBar() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="14" y1="5" x2="14" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="14" y="8"  width="52" height="11" rx="2" fill="var(--accent-h)" opacity="0.85"/>
+    <rect x="14" y="25" width="72" height="11" rx="2" fill="var(--accent-h)" opacity="0.7"/>
+    <rect x="14" y="42" width="38" height="11" rx="2" fill="var(--accent-2)" opacity="0.75"/>
+  </svg>`;
+}
+
+function sketchDonut() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <circle cx="50" cy="30" r="22" fill="none" stroke="var(--accent-h)"  stroke-width="11" stroke-dasharray="69 70" stroke-dashoffset="17" opacity="0.9"/>
+    <circle cx="50" cy="30" r="22" fill="none" stroke="var(--accent-2)"  stroke-width="11" stroke-dasharray="35 104" stroke-dashoffset="-52" opacity="0.7"/>
+    <circle cx="50" cy="30" r="22" fill="none" stroke="var(--text-3)"    stroke-width="11" stroke-dasharray="34 105" stroke-dashoffset="-87" opacity="0.4"/>
+    <circle cx="50" cy="30" r="12" fill="var(--surface)"/>
+  </svg>`;
+}
+
+function sketchScatter() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <line x1="5" y1="5"  x2="5"  y2="55" stroke="var(--border)" stroke-width="1"/>
+    <circle cx="18" cy="46" r="3.5" fill="var(--accent-h)" opacity="0.8"/>
+    <circle cx="33" cy="30" r="3.5" fill="var(--accent-h)" opacity="0.7"/>
+    <circle cx="44" cy="42" r="4"   fill="var(--accent-2)" opacity="0.8"/>
+    <circle cx="56" cy="18" r="3.5" fill="var(--accent-h)" opacity="0.9"/>
+    <circle cx="67" cy="34" r="4"   fill="var(--accent-2)" opacity="0.7"/>
+    <circle cx="78" cy="14" r="3"   fill="var(--accent-h)" opacity="0.8"/>
+    <circle cx="84" cy="44" r="3.5" fill="var(--accent-2)" opacity="0.6"/>
+  </svg>`;
+}
+
+function sketchKPI() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <rect x="8" y="8" width="84" height="44" rx="6" fill="var(--accent-h)" opacity="0.1" stroke="var(--accent-h)" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="50" y="33" text-anchor="middle" font-size="20" font-weight="800" fill="var(--accent-h)" font-family="system-ui,sans-serif">84.2K</text>
+    <text x="50" y="46" text-anchor="middle" font-size="9" fill="var(--text-3)" font-family="system-ui,sans-serif">▲ 12.4% vs last period</text>
+  </svg>`;
+}
+
+function sketchMap() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <ellipse cx="50" cy="30" rx="42" ry="24" fill="none" stroke="var(--border)" stroke-width="1.5"/>
+    <ellipse cx="50" cy="30" rx="20" ry="24" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 2"/>
+    <line x1="8" y1="30" x2="92" y2="30" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 2"/>
+    <circle cx="38" cy="23" r="6"   fill="var(--accent-h)" opacity="0.65"/>
+    <circle cx="63" cy="36" r="9"   fill="var(--accent-2)" opacity="0.55"/>
+    <circle cx="28" cy="38" r="4.5" fill="var(--accent-h)" opacity="0.5"/>
+  </svg>`;
+}
+
+function sketchTreemap() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <rect x="4"  y="4"  width="54" height="52" rx="2" fill="var(--accent-h)" opacity="0.75"/>
+    <rect x="62" y="4"  width="34" height="29" rx="2" fill="var(--accent-2)" opacity="0.65"/>
+    <rect x="62" y="37" width="20" height="19" rx="2" fill="var(--accent-h)" opacity="0.45"/>
+    <rect x="86" y="37" width="10" height="19" rx="2" fill="var(--accent-2)" opacity="0.35"/>
+  </svg>`;
+}
+
+function sketchHeatmap() {
+  const cols = [8, 26, 44, 62, 80];
+  const rows = [6, 23, 40];
+  const ops  = [0.2, 0.5, 0.9, 0.4, 0.3, 0.7, 0.6, 0.85, 0.2, 0.95, 0.5, 0.35, 0.25, 0.7, 0.55];
+  let cells = '';
+  rows.forEach((y, ri) => cols.forEach((x, ci) => {
+    cells += `<rect x="${x}" y="${y}" width="14" height="13" rx="1" fill="var(--accent-h)" opacity="${ops[ri*5+ci]}"/>`;
+  }));
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">${cells}</svg>`;
+}
+
+function sketchTable() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <rect x="4" y="4" width="92" height="52" rx="3" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <rect x="4" y="4" width="92" height="13" rx="3" fill="var(--accent-h)" opacity="0.25"/>
+    <line x1="4"  y1="17" x2="96" y2="17" stroke="var(--border)" stroke-width="1"/>
+    <line x1="4"  y1="29" x2="96" y2="29" stroke="var(--border)" stroke-width="1"/>
+    <line x1="4"  y1="41" x2="96" y2="41" stroke="var(--border)" stroke-width="1"/>
+    <line x1="36" y1="4"  x2="36" y2="56" stroke="var(--border)" stroke-width="1"/>
+    <line x1="68" y1="4"  x2="68" y2="56" stroke="var(--border)" stroke-width="1"/>
+  </svg>`;
+}
+
+function sketchFunnel() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <polygon points="8,6 92,6 74,23 26,23"  fill="var(--accent-h)" opacity="0.85"/>
+    <polygon points="26,26 74,26 62,42 38,42" fill="var(--accent-2)" opacity="0.75"/>
+    <polygon points="38,45 62,45 56,58 44,58" fill="var(--accent-h)" opacity="0.55"/>
+  </svg>`;
+}
+
+function sketchTree() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <circle cx="50" cy="9" r="5" fill="var(--accent-h)" opacity="0.9"/>
+    <line x1="50" y1="14" x2="24" y2="30" stroke="var(--border)" stroke-width="1.5"/>
+    <line x1="50" y1="14" x2="76" y2="30" stroke="var(--border)" stroke-width="1.5"/>
+    <circle cx="24" cy="33" r="5" fill="var(--accent-2)" opacity="0.8"/>
+    <circle cx="76" cy="33" r="5" fill="var(--accent-2)" opacity="0.8"/>
+    <line x1="24" y1="38" x2="13" y2="52" stroke="var(--border)" stroke-width="1.5"/>
+    <line x1="24" y1="38" x2="35" y2="52" stroke="var(--border)" stroke-width="1.5"/>
+    <line x1="76" y1="38" x2="65" y2="52" stroke="var(--border)" stroke-width="1.5"/>
+    <line x1="76" y1="38" x2="87" y2="52" stroke="var(--border)" stroke-width="1.5"/>
+    <circle cx="13" cy="55" r="4" fill="var(--accent-h)" opacity="0.65"/>
+    <circle cx="35" cy="55" r="4" fill="var(--accent-h)" opacity="0.65"/>
+    <circle cx="65" cy="55" r="4" fill="var(--accent-h)" opacity="0.65"/>
+    <circle cx="87" cy="55" r="4" fill="var(--accent-h)" opacity="0.65"/>
+  </svg>`;
+}
+
+function sketchWaterfall() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="8"  y="26" width="13" height="29" rx="1" fill="var(--accent-h)" opacity="0.8"/>
+    <rect x="25" y="16" width="13" height="10" rx="1" fill="#22c55e" opacity="0.85"/>
+    <rect x="42" y="28" width="13" height="10" rx="1" fill="#ef4444" opacity="0.75"/>
+    <rect x="59" y="20" width="13" height="14" rx="1" fill="#22c55e" opacity="0.8"/>
+    <rect x="76" y="18" width="13" height="37" rx="1" fill="var(--accent-2)" opacity="0.7"/>
+    <line x1="21" y1="26" x2="25" y2="26" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="2 1"/>
+    <line x1="38" y1="16" x2="42" y2="16" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="2 1"/>
+    <line x1="55" y1="28" x2="59" y2="28" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="2 1"/>
+    <line x1="72" y1="20" x2="76" y2="20" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="2 1"/>
+  </svg>`;
+}
+
+function sketchCombo() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="5" y1="55" x2="95" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="10" y="30" width="13" height="25" rx="1" fill="var(--accent-h)" opacity="0.55"/>
+    <rect x="29" y="20" width="13" height="35" rx="1" fill="var(--accent-h)" opacity="0.55"/>
+    <rect x="48" y="34" width="13" height="21" rx="1" fill="var(--accent-h)" opacity="0.55"/>
+    <rect x="67" y="24" width="13" height="31" rx="1" fill="var(--accent-h)" opacity="0.55"/>
+    <polyline points="16,22 35,11 54,26 73,9" fill="none" stroke="var(--accent-2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="16" cy="22" r="3" fill="var(--accent-2)"/>
+    <circle cx="35" cy="11" r="3" fill="var(--accent-2)"/>
+    <circle cx="54" cy="26" r="3" fill="var(--accent-2)"/>
+    <circle cx="73" cy="9"  r="3" fill="var(--accent-2)"/>
+  </svg>`;
+}
+
+function sketchBox() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="28" y1="10" x2="28" y2="50" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <rect x="16" y="20" width="24" height="20" rx="1" fill="none" stroke="var(--accent-h)" stroke-width="2"/>
+    <line x1="16" y1="30" x2="40" y2="30" stroke="var(--accent-h)" stroke-width="2.5"/>
+    <line x1="72" y1="8"  x2="72" y2="52" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <rect x="58" y="18" width="28" height="26" rx="1" fill="none" stroke="var(--accent-2)" stroke-width="2"/>
+    <line x1="58" y1="29" x2="86" y2="29" stroke="var(--accent-2)" stroke-width="2.5"/>
+  </svg>`;
+}
+
+function sketchGantt() {
+  return `<svg class="chart-sketch" viewBox="0 0 100 60" aria-hidden="true">
+    <line x1="12" y1="5" x2="12" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="12" y="8"  width="48" height="11" rx="2" fill="var(--accent-h)" opacity="0.85"/>
+    <rect x="30" y="25" width="58" height="11" rx="2" fill="var(--accent-2)" opacity="0.75"/>
+    <rect x="12" y="42" width="36" height="11" rx="2" fill="var(--accent-h)" opacity="0.6"/>
+  </svg>`;
+}
+
+// ===== SHAREABLE URL =====
+function handleShare() {
+  if (!_currentQuery) return;
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.searchParams.set('q', _currentQuery);
+  url.searchParams.set('p', platform);
+  const shareUrl = url.toString();
+
+  navigator.clipboard.writeText(shareUrl).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = shareUrl;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+
+  history.pushState(null, '', shareUrl);
+
+  const btn = el.outputContent.querySelector('.share-btn');
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = 'Link copied!';
+    setTimeout(() => { btn.textContent = orig; }, 2200);
+  }
+}
+
+function checkURLParams() {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q');
+  const p = params.get('p');
+  if (p && STORY_PROMPTS[p]) { platform = p; applyPlatform(); }
+  if (q && apiKey) {
+    el.plainInput.value = q;
+    switchTab('plain');
+    handlePlain();
+  } else if (q) {
+    el.plainInput.value = q;
+    switchTab('plain');
   }
 }
 
